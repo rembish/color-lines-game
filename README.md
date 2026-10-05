@@ -58,6 +58,7 @@ cmake -S . -B build && cmake --build build -j
 ./build/lines            # looks for LINES.LIB in original/ or a folder you name
 make help                # the everyday commands; `make check` is what CI runs
 tools/clips.sh 75 3 62   # the clip above (needs ffmpeg and original/)
+uv run --with numpy tools/trailer.py   # a 10-second comic trailer (ffmpeg, original/)
 ```
 
 Browser: `make web` (Emscripten; the web build and the server's core into `cloudflare/`),
