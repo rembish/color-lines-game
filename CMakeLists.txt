@@ -28,3 +28,28 @@ target_link_libraries(replay PRIVATE lncore)
 # One Real48 operation per input line; tests/real48.py checks it against the original's System.
 add_executable(real48 tests/real48.c)
 target_link_libraries(real48 PRIVATE lncore)
+
+# The game. It reads LINES.LIB from the player's own copy at run time.
+add_executable(lines src/main.c src/pics.c src/top.c src/store.c src/audio.c)
+target_link_libraries(lines PRIVATE lncore)
+if(EMSCRIPTEN)
+  target_compile_options(lines PRIVATE -sUSE_SDL=2)
+  target_link_options(lines PRIVATE -sUSE_SDL=2 -sALLOW_MEMORY_GROWTH=1 -sINVOKE_RUN=0 -sEXIT_RUNTIME=0
+    -sFORCE_FILESYSTEM=1 -lidbfs.js "-sEXPORTED_RUNTIME_METHODS=['callMain','FS','IDBFS']"
+    --shell-file ${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html)
+  set_target_properties(lines PROPERTIES SUFFIX ".html")
+else()
+  find_package(SDL2 REQUIRED)
+  target_link_libraries(lines PRIVATE SDL2::SDL2)
+  if(TARGET SDL2::SDL2main)
+    target_link_libraries(lines PRIVATE SDL2::SDL2main)
+  endif()
+endif()
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+  foreach(t lines replay real48)
+    target_compile_options(${t} PRIVATE -Wall -Wextra -Wpedantic -Wshadow)
+    if(LN_WERROR)
+      target_compile_options(${t} PRIVATE -Werror)
+    endif()
+  endforeach()
+endif()
