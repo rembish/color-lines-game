@@ -20,4 +20,13 @@ void pics_init(SDL_Renderer *r);
 void pics_draw(int pic_id, int sx, int sy, int w, int h, int x, int y);
 void pics_fill(int x, int y, int w, int h, Uint8 r, Uint8 g, Uint8 b);
 
+/* The field as the original's screen: a copy of FL_LNS20 the kings are moved and redrawn on,
+ * as LINES.EXE moves them with screen-to-screen copies (0a72, 086e). */
+void pics_field_reset(void);
+/* move the rectangle (x, y, w, h) of the field by (dx, dy) */
+void pics_field_move(int x, int y, int w, int h, int dx, int dy);
+/* draw part of a picture onto the field */
+void pics_field_put(int pic_id, int sx, int sy, int w, int h, int x, int y);
+void pics_field_draw(void);
+
 #endif

@@ -11,6 +11,9 @@ static struct {
     Uint32 *rgba; /* w * h */
 } pic[PIC_COUNT];
 static SDL_Texture *tex[PIC_COUNT];
+static Uint32 *field; /* the field as it is now, SCREEN_W x SCREEN_H */
+static SDL_Texture *field_tex;
+static int field_dirty;
 static SDL_Renderer *ren;
 static char err[200];
 
@@ -131,4 +134,63 @@ void pics_fill(int x, int y, int w, int h, Uint8 r, Uint8 g, Uint8 b)
     SDL_SetRenderDrawColor(ren, r, g, b, 255);
     SDL_Rect d = { x, y, w, h };
     SDL_RenderFillRect(ren, &d);
+}
+
+void pics_field_reset(void)
+{
+    if (!pic[PIC_FIELD].rgba || pic[PIC_FIELD].w != SCREEN_W || pic[PIC_FIELD].h != SCREEN_H) return;
+    if (!field) field = malloc((size_t)SCREEN_W * SCREEN_H * 4);
+    memcpy(field, pic[PIC_FIELD].rgba, (size_t)SCREEN_W * SCREEN_H * 4);
+    field_dirty = 1;
+}
+
+void pics_field_move(int x, int y, int w, int h, int dx, int dy)
+{
+    if (!field) return;
+    static Uint32 tmp[SCREEN_W * SCREEN_H];
+    for (int r = 0; r < h; r++)
+        for (int c = 0; c < w; c++) {
+            int sx = x + c, sy = y + r;
+            tmp[r * w + c] = sx >= 0 && sx < SCREEN_W && sy >= 0 && sy < SCREEN_H ? field[sy * SCREEN_W + sx]
+                                                                                  : 0xff000000u;
+        }
+    for (int r = 0; r < h; r++)
+        for (int c = 0; c < w; c++) {
+            int tx = x + dx + c, ty = y + dy + r;
+            if (tx >= 0 && tx < SCREEN_W && ty >= 0 && ty < SCREEN_H)
+                field[ty * SCREEN_W + tx] = tmp[r * w + c];
+        }
+    field_dirty = 1;
+}
+
+void pics_field_put(int pic_id, int sx, int sy, int w, int h, int x, int y)
+{
+    if (!field || pic_id < 0 || pic_id >= PIC_COUNT || !pic[pic_id].rgba) return;
+    for (int r = 0; r < h; r++)
+        for (int c = 0; c < w; c++) {
+            int a = sx + c, b = sy + r, tx = x + c, ty = y + r;
+            if (a < 0 || b < 0 || a >= pic[pic_id].w || b >= pic[pic_id].h) continue;
+            if (tx < 0 || ty < 0 || tx >= SCREEN_W || ty >= SCREEN_H) continue;
+            field[ty * SCREEN_W + tx] = pic[pic_id].rgba[b * pic[pic_id].w + a];
+        }
+    field_dirty = 1;
+}
+
+void pics_field_draw(void)
+{
+    if (!field) {
+        pics_draw(PIC_FIELD, 0, 0, SCREEN_W, SCREEN_H, 0, 0);
+        return;
+    }
+    if (!field_tex) {
+        field_tex =
+            SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, SCREEN_W, SCREEN_H);
+        field_dirty = 1;
+    }
+    if (field_dirty) {
+        SDL_UpdateTexture(field_tex, NULL, field, SCREEN_W * 4);
+        field_dirty = 0;
+    }
+    SDL_Rect d = { 0, 0, SCREEN_W, SCREEN_H };
+    SDL_RenderCopy(ren, field_tex, NULL, &d);
 }

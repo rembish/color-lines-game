@@ -51,6 +51,12 @@ static top_table global; /* the global Top Ten, when the server answered */
 static int have_global;
 static const char *msg;
 
+/* the kings (0a72, 086e): steps of score * 20 / best, the pretender's and the king's places */
+static int king_steps, crowned;
+static int pretender_y = 0x9d, king_y = 0x44;
+static int crown_frame; /* 0 none, else the handover animation's next frame */
+static Uint32 king_t;
+
 /* the original's screen positions (init, 346f) */
 #define CELL_X(x) (170 + 34 * ((x) - 1))
 #define CELL_Y(y) (60 + 24 * ((y) - 1))
@@ -148,7 +154,7 @@ static void draw_board(void)
 
 static void draw_game(void)
 {
-    pics_draw(PIC_FIELD, 0, 0, SCREEN_W, SCREEN_H, 0, 0);
+    pics_field_draw();
     draw_board();
     if (anim == AN_MOVE) {
         int c = shown.colour;
@@ -240,6 +246,71 @@ static void present(void)
     SDL_RenderPresent(ren);
 }
 
+/* ---- the kings ---- */
+
+static unsigned best_score(void) { return online && have_global ? global.score[0] : top.score[0]; }
+
+/* the handover (086e): the king's crown pieces, the king losing it, the pretender taking it.
+ * at: 0 by the king's crown, 1 the king, 2 the pretender; wait: before the next frame */
+static const struct {
+    int sx, sy, w, h, at;
+    Uint32 wait;
+} crown[] = {
+    { 456, 171, 18, 16, 0, 400 }, { 456, 188, 18, 16, 0, 400 }, { 551, 1, 72, 73, 1, 60 },
+    { 478, 75, 72, 73, 1, 60 },   { 551, 75, 72, 73, 1, 60 },   { 478, 149, 72, 73, 1, 600 },
+    { 300, 170, 50, 47, 2, 60 },  { 351, 170, 50, 47, 2, 60 },  { 402, 170, 50, 47, 2, 60 },
+    { 249, 218, 50, 47, 2, 200 }, { 300, 218, 50, 47, 2, 200 }, { 249, 218, 50, 47, 2, 200 },
+    { 300, 218, 50, 47, 2, 0 },
+};
+#define CROWN_FRAMES ((int)(sizeof crown / sizeof crown[0]))
+
+static void crown_step(void)
+{
+    if (crown_frame > 1 && now - king_t < crown[crown_frame - 2].wait) return;
+    const int k = crown_frame - 1;
+    int x = crown[k].at == 0 ? 0x47 : crown[k].at == 1 ? 0x33 : 0x203 + 1;
+    int y = crown[k].at == 0 ? 0x65 : crown[k].at == 1 ? king_y + 4 : pretender_y - 1;
+    pics_field_put(PIC_SPRITES, crown[k].sx, crown[k].sy, crown[k].w, crown[k].h, x, y);
+    if (k == 5) beep(1000, 40);
+    king_t = now;
+    crown_frame = crown_frame < CROWN_FRAMES ? crown_frame + 1 : 0;
+    if (!crown_frame) crowned = 1;
+}
+
+/* draw_score_and_kings (0a72), one step per 40 ms */
+static void kings_update(void)
+{
+    if (crown_frame) {
+        crown_step();
+        return;
+    }
+    unsigned best = best_score();
+    int target = best ? (int)((unsigned)(uint16_t)(G.score * 20u) / best) : 0; /* 16 bits, as there */
+    if (king_steps < target) {
+        if (now - king_t < 40) return;
+        king_t = now;
+        king_steps++;
+        if (king_steps < 21) { /* the pretender rises */
+            pics_field_move(0x203, pretender_y, 0x45, 0x45, 0, -4);
+            pretender_y -= 4;
+        }
+        if (king_steps > 19 && best < G.score && !crowned) crown_frame = 1;
+        if (king_steps > 20 && king_steps < 41) { /* the king sinks */
+            pics_field_move(0x33, king_y, 0x4e, 0x48, 0, 4);
+            king_y += 4;
+        }
+    } else if (best < G.score && !crowned)
+        crown_frame = 1;
+}
+
+static void kings_reset(void)
+{
+    pics_field_reset();
+    king_steps = crowned = crown_frame = 0;
+    pretender_y = 0x9d;
+    king_y = 0x44;
+}
+
 /* ---- game ---- */
 
 static unsigned hundredths(ln_time t)
@@ -280,6 +351,7 @@ static void parse_top(char *buf, top_table *t)
 static void new_game(uint32_t seed)
 {
     ln_new_game(&G, seed);
+    kings_reset();
     moves_len = 0;
     if (!moves_cap) {
         moves_cap = 4096;
@@ -609,6 +681,7 @@ static void frame(void)
             sc = SC_TOP;
         }
     }
+    if (sc == SC_GAME && !anim) kings_update();
     if (sc == SC_GAME) {
         if (anim)
             animate();
@@ -643,6 +716,24 @@ static int shot(const char *file, const char *what)
     if (!strcmp(what, "title")) sc = SC_TITLE;
     if (!strcmp(what, "help")) sc = SC_HELP;
     if (!strcmp(what, "top")) sc = SC_TOP;
+    if (!strcmp(what, "kings")) { /* play the demo until the pretender has the crown */
+        demo = 1;
+        top.score[0] = 30; /* an easy king to beat */
+        for (int i = 0; i < 400000 && sc == SC_GAME && !crowned; i++) {
+            now += 20;
+            if (anim)
+                animate();
+            else {
+                kings_update();
+                if (!crown_frame) demo_move();
+            }
+        }
+        for (int i = 0; i < 2000 && sc == SC_GAME; i++) {
+            now += 20;
+            kings_update();
+        }
+        demo = 0;
+    }
     if (!strncmp(what, "game", 4)) {
         demo = 1;
         for (int i = 0; i < atoi(what + 4 + (what[4] == ':')) * 200 && sc == SC_GAME; i++) {
