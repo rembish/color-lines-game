@@ -73,9 +73,9 @@ static void rcl_ahbxdx(regs *r) /* rcl ah,1; rcl bx,1; rcl dx,1 (carry in) */
     unsigned c1 = ah >> 7;
     SET_AH(*r, ah << 1 | c);
     unsigned c2 = r->bx >> 15;
-    r->bx = (uint16_t)(r->bx << 1 | c1);
+    r->bx = (uint16_t)((unsigned)r->bx << 1 | c1);
     r->cf = (int)(r->dx >> 15);
-    r->dx = (uint16_t)(r->dx << 1 | c2);
+    r->dx = (uint16_t)((unsigned)r->dx << 1 | c2);
 }
 
 static void add40(regs *r) /* add ah,ch; adc bx,si; adc dx,di */
@@ -406,7 +406,7 @@ ln_real ln_real_from_long(int32_t v)
         SET_AL(r, AL(r) - 1);
         unsigned c = r.bx >> 15;
         r.bx = (uint16_t)(r.bx << 1);
-        r.dx = (uint16_t)(r.dx << 1 | c);
+        r.dx = (uint16_t)((unsigned)r.dx << 1 | c);
     }
     if (!negative) r.dx &= 0x7fff;
     return pack(&r);

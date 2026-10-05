@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#000000">
+<title>Color Lines (1992)</title>
+<style>
+  :root { --fg: #e8e8f0; --dim: #a0a0b8; --accent: #ffff55; --panel: #1a1a2a; }
+  html, body { margin: 0; height: 100%; background: #000; color: var(--fg); font: 15px/1.5 system-ui, sans-serif; }
+  #canvas { display: none; width: 100vw; height: 100vh; height: 100dvh; object-fit: contain; outline: none; }
+  body.playing #canvas { display: block; }
+  body.playing #intro { display: none; }
+  #intro { max-width: 640px; margin: 0 auto; padding: 32px 20px; }
+  h1 { margin: 0; font-size: 34px; letter-spacing: .08em; color: var(--accent); }
+  h1 + p { margin-top: 2px; color: var(--dim); }
+  .box { background: var(--panel); border: 1px solid #34345a; border-radius: 10px; padding: 16px 18px; margin: 18px 0; }
+  .box h2 { margin: 0 0 8px; font-size: 16px; }
+  button { font: inherit; border: 0; border-radius: 8px; padding: 10px 16px; margin: 6px 8px 0 0; cursor: pointer;
+           background: var(--accent); color: #111; font-weight: 600; }
+  button.quiet { background: #34345a; color: var(--fg); font-weight: 400; }
+  button[disabled] { opacity: .5; cursor: default; }
+  label.check { display: block; margin-top: 10px; }
+  #status { min-height: 1.5em; color: var(--accent); }
+  #status.error { color: #ff7a7a; }
+  kbd { background: #34345a; border-radius: 4px; padding: 0 5px; font-size: 13px; }
+  a { color: var(--accent); }
+  small { color: var(--dim); }
+</style>
+</head>
+<body>
+<canvas id="canvas" tabindex="0" oncontextmenu="event.preventDefault()"></canvas>
+<div id="intro">
+  <h1>COLOR LINES</h1>
+  <p>Gamos, Moscow, 1992 — Olga Demina, Igor Ivkin, Gennady Denisov. The original game
+    reconstructed from <code>LINES.EXE</code>: the same random balls, the same lines, the same
+    score, to the last rounding of its 6-byte floating point.</p>
+
+  <div class="box" id="stored" hidden>
+    <h2 id="welcome">Ready</h2>
+    <p>The game's pictures are in this browser from an earlier visit.</p>
+    <button id="play">Play</button>
+    <button class="quiet" id="forget">Forget the stored files</button>
+  </div>
+
+  <div class="box" id="fetch" hidden>
+    <h2>The game's pictures</h2>
+    <p>This page contains no part of the original game. It draws with the original's pictures,
+      one file of it: <code>LINES.LIB</code> (200 KB). It can download it for you from the copy at
+      the <a href="https://archive.org/details/lines_eng" target="_blank" rel="noopener">Internet
+      Archive</a>; it then stays in this browser's storage and is never sent anywhere. Color Lines
+      is still Gamos' work: whether to use that copy is your decision.</p>
+    <label class="check"><input type="checkbox" id="agree"> I understand, and choose to download it.</label>
+    <button id="download" disabled>Download and play</button>
+    <p><small>Or use your own copy: choose <code>LINES.LIB</code> or the game's zip as it is (or drop
+      it on this page).</small><br>
+      <button class="quiet" id="own">Use my own files…</button>
+      <input type="file" id="files" multiple accept=".lib,.LIB,.zip,.ZIP" hidden></p>
+  </div>
+
+  <p id="status"></p>
+
+  <div class="box">
+    <h2>How to play</h2>
+    <p>Move a ball to a free cell it can reach (click it, then click where; or the arrow keys and
+      <kbd>Space</kbd>). Five or more balls of one colour in a row — across, down or diagonal —
+      vanish and score; otherwise three new balls arrive (the <i>Next</i> three at the top).
+      The faster you think, the more a line is worth (but only after long thoughts does it
+      show). Beat the king's score to take his crown.</p>
+    <p><kbd>F1</kbd> help, <kbd>F2</kbd> sound, <kbd>F3</kbd> the next balls shown or not,
+      <kbd>F4</kbd> start again, <kbd>Esc</kbd> the title, <kbd>F11</kbd> full screen.</p>
+  </div>
+  <p><small>Source code and notes:
+    <a href="https://github.com/rembish/color-lines-game">github.com/rembish/color-lines-game</a>.</small></p>
+</div>
+<script>
+  var NEEDED = ['LINES.LIB'];
+  var ARCHIVE = 'https://archive.org/download/lines_eng/lines_eng.zip/lines.lib';
+  var $ = function (id) { return document.getElementById(id); };
+  var errors = [];
+
+  function status(text, error) {
+    $('status').textContent = text || '';
+    $('status').className = error ? 'error' : '';
+  }
+
+  function have(name) { try { FS.stat('/game/' + name); return true; } catch (e) { return false; } }
+
+  // a returning player: the name the game remembered (src/main.c, name.txt in localStorage)
+  function remembered() {
+    try {
+      var v = localStorage.getItem('lines:name.txt');
+      if (!v) return '';
+      var s = atob(v), b = new Uint8Array(s.length);
+      for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i);
+      return new TextDecoder().decode(b);
+    } catch (e) { return ''; }
+  }
+
+  function show() {
+    var ready = NEEDED.every(have), name = remembered();
+    $('welcome').textContent = name ? 'С возвращением, товарищ ' + name + '!' : 'Ready';
+    $('stored').hidden = !ready;
+    $('fetch').hidden = ready;
+  }
+
+  function start() {
+    errors = [];
+    document.body.className = 'playing';
+    Module.canvas.focus();
+    Module.callMain(/[?&]demo\b/.test(location.search) ? ['/game', '--demo'] : ['/game']);
+  }
+
+  function persist(done) {
+    FS.syncfs(false, function (err) {
+      if (err) status('This browser would not keep the files (' + err + '): they are gone when the page closes.', true);
+      done();
+    });
+  }
+
+  var Module = {
+    canvas: $('canvas'),
+    print: function (t) { console.log(t); },
+    printErr: function (t) { console.warn(t); errors.push(t); },
+    onExit: function () { document.body.className = ''; status(errors.join(' '), true); show(); },
+    onRuntimeInitialized: function () {
+      FS.mkdir('/game');
+      FS.mount(IDBFS, {}, '/game');
+      FS.syncfs(true, function (err) {
+        if (err) status('Could not read this browser\'s storage (' + err + ').', true);
+        show();
+      });
+    }
+  };
+
+  // a zip's files: name -> bytes, deflated or stored
+  function unzip(buf) {
+    var dv = new DataView(buf), end = -1;
+    for (var i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 65557); i--)
+      if (dv.getUint32(i, true) === 0x06054b50) { end = i; break; }
+    if (end < 0) return Promise.reject(new Error('not a zip'));
+    var at = dv.getUint32(end + 16, true), count = dv.getUint16(end + 10, true), parts = [];
+    for (var k = 0; k < count && dv.getUint32(at, true) === 0x02014b50; k++) {
+      var method = dv.getUint16(at + 10, true), size = dv.getUint32(at + 20, true);
+      var nlen = dv.getUint16(at + 28, true), local = dv.getUint32(at + 42, true);
+      var name = new TextDecoder().decode(new Uint8Array(buf, at + 46, nlen)).split('/').pop().toUpperCase();
+      var data = local + 30 + dv.getUint16(local + 26, true) + dv.getUint16(local + 28, true);
+      var bytes = new Uint8Array(buf, data, size);
+      at += 46 + nlen + dv.getUint16(at + 30, true) + dv.getUint16(at + 32, true);
+      if (method === 0) parts.push(Promise.resolve([name, bytes]));
+      else if (method === 8) parts.push(new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw')))
+        .arrayBuffer().then(function (n) { return function (b) { return [n, new Uint8Array(b)]; }; }(name)));
+    }
+    return Promise.all(parts);
+  }
+
+  function keep(f) {
+    var name = f.name.toUpperCase();
+    return f.arrayBuffer().then(function (b) {
+      if (/\.ZIP$/.test(name)) return unzip(b).then(function (all) {
+        all.forEach(function (p) { if (NEEDED.indexOf(p[0]) >= 0) FS.writeFile('/game/' + p[0], p[1]); });
+      });
+      if (NEEDED.indexOf(name) >= 0) FS.writeFile('/game/' + name, new Uint8Array(b));
+    });
+  }
+
+  function given(files) {
+    Promise.all(files.map(keep)).then(function () {
+      var missing = NEEDED.filter(function (n) { return !have(n); });
+      if (missing.length) { status('Still needed: ' + missing.join(', '), true); return; }
+      status('');
+      persist(start);
+    }).catch(function (e) { status('Could not read those files (' + e.message + ').', true); });
+  }
+
+  $('agree').addEventListener('change', function () { $('download').disabled = !this.checked; });
+  $('download').addEventListener('click', function () {
+    $('download').disabled = true;
+    status('Downloading from the Internet Archive…');
+    fetch(ARCHIVE).then(function (r) {
+      if (!r.ok) return r.json().then(function (j) { throw new Error(j.error || r.status); });
+      return r.arrayBuffer();
+    }).then(function (b) {
+      FS.writeFile('/game/LINES.LIB', new Uint8Array(b));
+      status('');
+      persist(start);
+    }).catch(function (e) {
+      status('The download failed (' + e.message + '). Try again later, or use your own files.', true);
+      $('download').disabled = false;
+    });
+  });
+
+  $('own').addEventListener('click', function () { $('files').click(); });
+  $('files').addEventListener('change', function () {
+    var files = Array.prototype.slice.call(this.files);
+    this.value = '';
+    given(files);
+  });
+  document.addEventListener('dragover', function (e) { e.preventDefault(); });
+  document.addEventListener('drop', function (e) {
+    e.preventDefault();
+    var files = Array.prototype.slice.call(e.dataTransfer.files);
+    if (files.length && typeof FS !== 'undefined' && document.body.className !== 'playing') given(files);
+  });
+  $('play').addEventListener('click', start);
+  $('forget').addEventListener('click', function () {
+    NEEDED.forEach(function (n) { if (have(n)) FS.unlink('/game/' + n); });
+    persist(show);
+  });
+
+  window.addEventListener('keydown', function (e) {
+    if (document.body.className !== 'playing') return;
+    if (/^(F([1-9]|1[0-2])|Arrow.*|Tab| |Backspace)$/.test(e.key)) e.preventDefault();
+  }, { passive: false });
+  document.addEventListener('pointerdown', function () { if (document.body.className === 'playing') Module.canvas.focus(); });
+</script>
+{{{ SCRIPT }}}
+</body>
+</html>
