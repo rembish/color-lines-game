@@ -9,7 +9,8 @@
 static ln_time at(long c)
 {
     c %= 24L * 360000L;
-    ln_time t = { (uint16_t)(c / 360000), (uint16_t)(c / 6000 % 60), (uint16_t)(c / 100 % 60), (uint16_t)(c % 100) };
+    ln_time t = { (uint16_t)(c / 360000), (uint16_t)(c / 6000 % 60), (uint16_t)(c / 100 % 60),
+                  (uint16_t)(c % 100) };
     return t;
 }
 
@@ -51,7 +52,8 @@ int main(int argc, char **argv)
         long t0 = clock, t1 = clock + 100;
         clock = t1 + 50;
         ln_move(&g, bx, by, tx, ty, at(t0), at(t1));
-        printf("%s[%d,%d,%d,%d,%ld,%ld]", n ? "," : "", bx, by, tx, ty, t0 % (24L * 360000L), t1 % (24L * 360000L));
+        printf("%s[%d,%d,%d,%d,%ld,%ld]", n ? "," : "", bx, by, tx, ty, t0 % (24L * 360000L),
+               t1 % (24L * 360000L));
     }
     printf("]\n%u\n", g.score);
     return 0;
