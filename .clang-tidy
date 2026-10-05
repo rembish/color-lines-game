@@ -1,0 +1,40 @@
+# Bug-finding checks on; pure style checks that clash with this code base off:
+#  - magic numbers: the original's constants *are* the specification
+#  - identifier length / braces / isolate-declaration / literal suffix / math parentheses:
+#    house style (short math names, one-line ifs)
+#  - cognitive complexity: the frame loops mirror the original's control flow on purpose
+#  - include-cleaner: SDL is used through its umbrella header
+#  - implicit widening of multiplications: only small table indices
+#  - err33/err34 (unchecked printf family, atoi/sscanf): only in dev CLI flags and fixed buffers;
+#    real file I/O is checked by hand
+#  - narrowing int->float in rendering is intended (the core is built with -Wconversion)
+#  - optin.taint: meant for untrusted input; the only file parsing is of local test scripts
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  misc-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-implicit-widening-of-multiplication-result,
+  -bugprone-narrowing-conversions,
+  -clang-analyzer-optin.taint.*,
+  -cert-err33-c,
+  -cert-err34-c,
+  -misc-include-cleaner,
+  -readability-avoid-nested-conditional-operator,
+  -readability-braces-around-statements,
+  -readability-function-cognitive-complexity,
+  -readability-identifier-length,
+  -readability-isolate-declaration,
+  -readability-magic-numbers,
+  -readability-math-missing-parentheses,
+  -readability-uppercase-literal-suffix
+WarningsAsErrors: '*'
+HeaderFilterRegex: '/(core|src|tests)/[^/]+\.h$'
+CheckOptions:
+  - key: bugprone-narrowing-conversions.WarnOnFloatingPointNarrowingConversion
+    value: false

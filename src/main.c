@@ -30,10 +30,10 @@ static int running = 1, sc = SC_TITLE;
 static Uint32 now;
 
 static ln_game G;
-static ln_game shown;                  /* what the board shows while an animation runs */
-static int cur_x = 5, cur_y = 5;       /* keyboard cursor, cells 1..9 */
-static int sel_x, sel_y;               /* selected ball, 0 = none */
-static ln_time t0;                     /* read at the top of each turn */
+static ln_game shown;            /* what the board shows while an animation runs */
+static int cur_x = 5, cur_y = 5; /* keyboard cursor, cells 1..9 */
+static int sel_x, sel_y;         /* selected ball, 0 = none */
+static ln_time t0;               /* read at the top of each turn */
 static int sound_on = 1, next_on = 1;
 static int anim, anim_step;
 static Uint32 anim_t;
@@ -41,30 +41,30 @@ static int path_x[82], path_y[82], path_n;
 static int demo;
 static top_table top;
 static char name_buf[TOP_NAME + 1];
-static int new_rank;                   /* 1..10 where the new score went, 0 none */
+static int new_rank; /* 1..10 where the new score went, 0 none */
 static int ignore_text;
-static int online;                     /* dealt by lines.rembi.sh: the score goes to the global Top Ten */
+static int online; /* dealt by lines.rembi.sh: the score goes to the global Top Ten */
 static Uint32 wait_until;
-static char *moves;                    /* JSON [[fx,fy,tx,ty,t0,t1],...] of this game, for the server */
+static char *moves; /* JSON [[fx,fy,tx,ty,t0,t1],...] of this game, for the server */
 static size_t moves_len, moves_cap;
-static top_table global;               /* the global Top Ten, when the server answered */
+static top_table global; /* the global Top Ten, when the server answered */
 static int have_global;
 static const char *msg;
 
 /* the original's screen positions (init, 346f) */
 #define CELL_X(x) (170 + 34 * ((x) - 1))
 #define CELL_Y(y) (60 + 24 * ((y) - 1))
-#define BALL_X 43                      /* sprite sheet: the ball on its cell */
-#define TINY_X 77
-#define SMALL_X 111
-#define SQUASH_X 145
-#define GONE1_X 179
-#define GONE2_X 213
-#define ROW_Y(c) (170 + 24 * ((c) - 1))
-#define EMPTY_X 247                    /* an empty cell */
-#define EMPTY_Y 314
-#define PANEL_X 204
-#define PANEL_Y 84
+#define BALL_X    43 /* sprite sheet: the ball on its cell */
+#define TINY_X    77
+#define SMALL_X   111
+#define SQUASH_X  145
+#define GONE1_X   179
+#define GONE2_X   213
+#define ROW_Y(c)  (170 + 24 * ((c) - 1))
+#define EMPTY_X   247 /* an empty cell */
+#define EMPTY_Y   314
+#define PANEL_X   204
+#define PANEL_Y   84
 
 /* the time of day as GetTime gives it, from one clock: the wall time when the program started
  * plus SDL's milliseconds since (seconds and hundredths must never disagree) */
@@ -75,7 +75,9 @@ static ln_time clock_now(void)
     if (!base_ms && !base_ticks) {
         time_t t = time(NULL);
         struct tm *tm = localtime(&t);
-        base_ms = ((unsigned long)tm->tm_hour * 3600ul + (unsigned long)tm->tm_min * 60ul + (unsigned long)tm->tm_sec) * 1000ul;
+        base_ms = ((unsigned long)tm->tm_hour * 3600ul + (unsigned long)tm->tm_min * 60ul +
+                   (unsigned long)tm->tm_sec) *
+                  1000ul;
         base_ticks = SDL_GetTicks();
     }
     unsigned long ms = (base_ms + (SDL_GetTicks() - base_ticks)) % 86400000ul;
@@ -158,10 +160,14 @@ static void draw_game(void)
             for (int x = 1; x <= 9; x++) {
                 int a = shown.board[x][y], b = G.board[x][y];
                 if (anim == AN_VANISH && a && !b)
-                    pics_draw(PIC_SPRITES, anim_step ? GONE2_X : GONE1_X, ROW_Y(a), 34, 24, CELL_X(x), CELL_Y(y));
+                    pics_draw(PIC_SPRITES, anim_step ? GONE2_X : GONE1_X, ROW_Y(a), 34, 24, CELL_X(x),
+                              CELL_Y(y));
                 if (anim == AN_GROW && !a && b)
-                    pics_draw(PIC_SPRITES, anim_step == 0 ? TINY_X : anim_step == 1 ? SMALL_X : BALL_X, ROW_Y(b),
-                              34, 24, CELL_X(x), CELL_Y(y));
+                    pics_draw(PIC_SPRITES,
+                              anim_step == 0   ? TINY_X
+                              : anim_step == 1 ? SMALL_X
+                                               : BALL_X,
+                              ROW_Y(b), 34, 24, CELL_X(x), CELL_Y(y));
             }
     }
     for (int i = 1; i <= 3; i++) {
@@ -192,8 +198,10 @@ static void draw_top(void)
         snprintf(s, sizeof s, "%5u", t->score[k]);
         text(s, PANEL_X + 209 - 45, y);
     }
-    if (msg) text(msg, PANEL_X + 120 - (int)strlen(msg) * 9 / 2, PANEL_Y + 172);
-    else if (online && have_global && sc == SC_TOP) text("The whole world's", PANEL_X + 43, PANEL_Y + 172);
+    if (msg)
+        text(msg, PANEL_X + 120 - (int)strlen(msg) * 9 / 2, PANEL_Y + 172);
+    else if (online && have_global && sc == SC_TOP)
+        text("The whole world's", PANEL_X + 43, PANEL_Y + 172);
     if (sc == SC_SUBMIT) text("Telling the king...", PANEL_X + 34, PANEL_Y + 172);
     if (sc == SC_NAME) {
         int x = text(name_buf, PANEL_X + 120, PANEL_Y + 148);
@@ -242,8 +250,8 @@ static unsigned hundredths(ln_time t)
 static void log_move(int fx, int fy, int tx, int ty, ln_time a, ln_time b)
 {
     char m[80];
-    int n = snprintf(m, sizeof m, "%s[%d,%d,%d,%d,%u,%u]", moves_len > 1 ? "," : "", fx, fy, tx, ty, hundredths(a),
-                     hundredths(b));
+    int n = snprintf(m, sizeof m, "%s[%d,%d,%d,%d,%u,%u]", moves_len > 1 ? "," : "", fx, fy, tx, ty,
+                     hundredths(a), hundredths(b));
     if (moves_len + (size_t)n + 2 > moves_cap) {
         moves_cap = moves_cap ? moves_cap * 2 : 4096;
         char *grown = realloc(moves, moves_cap);
@@ -277,7 +285,7 @@ static void new_game(uint32_t seed)
         moves_cap = 4096;
         moves = malloc(moves_cap);
     }
-    if (moves) strcpy(moves, "[");
+    if (moves) memcpy(moves, "[", 2);
     moves_len = 1;
     sel_x = sel_y = 0;
     anim = AN_NONE;
@@ -389,6 +397,14 @@ static void animate(void)
     }
 }
 
+static uint32_t demo_seed = 1; /* the demo's own choices (not the game's RNG) */
+
+static int demo_rand(int n)
+{
+    demo_seed = demo_seed * 1103515245u + 12345u;
+    return (int)((demo_seed >> 16) % (uint32_t)n);
+}
+
 /* the demo plays like the bot in re/emu/record.py: the longest line it can make */
 static void demo_move(void)
 {
@@ -407,12 +423,14 @@ static void demo_move(void)
                         for (int s = -1; s <= 1; s += 2)
                             for (int k = 1;; k++) {
                                 int a = u + s * k * dirs[d][0], b = v + s * k * dirs[d][1];
-                                if (a < 1 || a > 9 || b < 1 || b > 9 || (a == x && b == y) || G.board[a][b] != c) break;
+                                if (a < 1 || a > 9 || b < 1 || b > 9 || (a == x && b == y) ||
+                                    G.board[a][b] != c)
+                                    break;
                                 m++;
                             }
                         if (m > len) len = m;
                     }
-                    if (len > best || (len == best && rand() % ++n == 0)) {
+                    if (len > best || (len == best && demo_rand(++n) == 0)) {
                         if (len > best) n = 1;
                         best = len, bx = x, by = y, tx = u, ty = v;
                     }
@@ -469,15 +487,26 @@ static void key(SDL_Keysym ks)
         break;
     case SC_GAME:
         switch (ks.sym) {
-        case SDLK_LEFT: if (cur_x > 1) cur_x--; break;
-        case SDLK_RIGHT: if (cur_x < 9) cur_x++; break;
-        case SDLK_UP: if (cur_y > 1) cur_y--; break;
-        case SDLK_DOWN: if (cur_y < 9) cur_y++; break;
-        case SDLK_SPACE: case SDLK_RETURN: click_cell(cur_x, cur_y); break;
+        case SDLK_LEFT:
+            if (cur_x > 1) cur_x--;
+            break;
+        case SDLK_RIGHT:
+            if (cur_x < 9) cur_x++;
+            break;
+        case SDLK_UP:
+            if (cur_y > 1) cur_y--;
+            break;
+        case SDLK_DOWN:
+            if (cur_y < 9) cur_y++;
+            break;
+        case SDLK_SPACE:
+        case SDLK_RETURN: click_cell(cur_x, cur_y); break;
         case SDLK_F1: sc = SC_HELP; break;
         case SDLK_F2: sound_on = !sound_on; break;
         case SDLK_F3: next_on = !next_on; break;
-        case SDLK_F4: if (!anim) game_over(); break; /* restart: the Top Ten all the same */
+        case SDLK_F4:
+            if (!anim) game_over();
+            break; /* restart: the Top Ten all the same */
         case SDLK_ESCAPE: sc = SC_TITLE; break;
         default: break;
         }
@@ -581,10 +610,12 @@ static void frame(void)
         }
     }
     if (sc == SC_GAME) {
-        if (anim) animate();
-        else if (demo && now - anim_t > 150) demo_move();
+        if (anim)
+            animate();
+        else if (demo && now - anim_t > 150)
+            demo_move();
     }
-    if (demo && sc == SC_TOP && now - anim_t > 3000) {
+    if (demo && sc == SC_TOP && now - anim_t > 3000) { /* another demo game */
         net_new_game();
         wait_until = now + 1500;
         sc = SC_WAIT;
@@ -625,7 +656,8 @@ static int shot(const char *file, const char *what)
     }
     render();
     SDL_SetRenderTarget(ren, screen);
-    SDL_Surface *s = SDL_CreateRGBSurfaceWithFormat(0, SCREEN_W * SCALE, SCREEN_H * SCALE, 32, SDL_PIXELFORMAT_ARGB8888);
+    SDL_Surface *s =
+        SDL_CreateRGBSurfaceWithFormat(0, SCREEN_W * SCALE, SCREEN_H * SCALE, 32, SDL_PIXELFORMAT_ARGB8888);
     SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, s->pixels, s->pitch);
     int r = SDL_SaveBMP(s, file);
     SDL_FreeSurface(s);
@@ -660,9 +692,10 @@ int main(int argc, char **argv)
         return 1;
     }
     win = SDL_CreateWindow("Color Lines", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 960,
-                           SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI | (shot_file ? SDL_WINDOW_HIDDEN : 0));
-    ren = SDL_CreateRenderer(win, -1,
-                             shot_file ? SDL_RENDERER_SOFTWARE : SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+                           SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI |
+                               (shot_file ? SDL_WINDOW_HIDDEN : 0));
+    ren = SDL_CreateRenderer(
+        win, -1, shot_file ? SDL_RENDERER_SOFTWARE : SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (!ren) ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_SOFTWARE);
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
     pics_init(ren);
@@ -671,7 +704,7 @@ int main(int argc, char **argv)
                                SCREEN_H * SCALE);
     if (shot_file) return shot(shot_file, shot_what) == 0 ? 0 : 1;
     audio_init();
-    srand((unsigned)time(NULL));
+    demo_seed = (uint32_t)time(NULL);
     if (demo) { /* as from the title: the club deals if it answers */
         net_new_game();
         net_top();

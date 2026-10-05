@@ -39,7 +39,8 @@ static int decode(int k, const unsigned char *d, size_t len)
     }
     Uint32 pal[16];
     for (int i = 0; i < 16; i++)
-        pal[i] = (Uint32)d[16 + 3 * i] | (Uint32)d[17 + 3 * i] << 8 | (Uint32)d[18 + 3 * i] << 16 | 0xff000000u;
+        pal[i] =
+            (Uint32)d[16 + 3 * i] | (Uint32)d[17 + 3 * i] << 8 | (Uint32)d[18 + 3 * i] << 16 | 0xff000000u;
     free(pic[k].rgba);
     pic[k].w = w;
     pic[k].h = h;
@@ -48,7 +49,8 @@ static int decode(int k, const unsigned char *d, size_t len)
         for (int x = 0; x < w; x++) {
             int c = 0;
             for (int pl = 0; pl < planes; pl++)
-                if (raw[((size_t)y * (size_t)planes + (size_t)pl) * (size_t)bpl + (size_t)(x >> 3)] & (0x80 >> (x & 7)))
+                if (raw[((size_t)y * (size_t)planes + (size_t)pl) * (size_t)bpl + (size_t)(x >> 3)] &
+                    (0x80 >> (x & 7)))
                     c |= 1 << pl;
             pic[k].rgba[y * w + x] = pal[c];
         }
@@ -117,11 +119,11 @@ void pics_init(SDL_Renderer *r)
     }
 }
 
-void pics_draw(int k, int sx, int sy, int w, int h, int x, int y)
+void pics_draw(int pic_id, int sx, int sy, int w, int h, int x, int y)
 {
-    if (k < 0 || k >= PIC_COUNT || !tex[k]) return;
+    if (pic_id < 0 || pic_id >= PIC_COUNT || !tex[pic_id]) return;
     SDL_Rect s = { sx, sy, w, h }, d = { x, y, w, h };
-    SDL_RenderCopy(ren, tex[k], &s, &d);
+    SDL_RenderCopy(ren, tex[pic_id], &s, &d);
 }
 
 void pics_fill(int x, int y, int w, int h, Uint8 r, Uint8 g, Uint8 b)

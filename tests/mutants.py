@@ -15,21 +15,37 @@ SRC = os.path.join(ROOT, "core", "ln_core.c")
 ONLY = os.environ.get("ONLY")
 
 MUTANTS = [
-    ("always reachable", "    if (!ln_reachable(g, fx, fy, tx, ty)) return 0;\n    g->colour", "    g->colour"),
+    (
+        "always reachable",
+        "    if (!ln_reachable(g, fx, fy, tx, ty)) return 0;\n    g->colour",
+        "    g->colour",
+    ),
     ("rng multiplier", "0x08088405u", "0x08088404u"),
     ("positions from Random(81)", "ln_random(g, 80)", "ln_random(g, 81)"),
     ("probe wraps at 80", "if (++k == 81) k = 0;", "if (++k == 80) k = 0;"),
     ("probe backwards", "if (++k == 81) k = 0;", "if (--k < 0) k = 80;"),
-    ("six colours", "g->colour = (int16_t)(ln_random(g, 7) + 1);\n        g->next[i]",
-     "g->colour = (int16_t)(ln_random(g, 6) + 1);\n        g->next[i]"),
-    ("colour before position", "    free_position(g);\n    g->colour = (int16_t)(ln_random(g, 7) + 1);",
-     "    g->colour = (int16_t)(ln_random(g, 7) + 1);\n    free_position(g);"),
+    (
+        "six colours",
+        "g->colour = (int16_t)(ln_random(g, 7) + 1);\n        g->next[i]",
+        "g->colour = (int16_t)(ln_random(g, 6) + 1);\n        g->next[i]",
+    ),
+    (
+        "colour before position",
+        "    free_position(g);\n    g->colour = (int16_t)(ln_random(g, 7) + 1);",
+        "    g->colour = (int16_t)(ln_random(g, 7) + 1);\n    free_position(g);",
+    ),
     ("always three next", "g->next_count = g->free_cells < 3 ? g->free_cells : 3;", "g->next_count = 3;"),
     ("lines of four", "if (run > 4)", "if (run > 3)"),
-    ("centre counted once", "g->line_count = (int16_t)(g->line_count + run);",
-     "g->line_count = (int16_t)(g->line_count + run - (g->line_count > 0));"),
-    ("no anti-diagonal", "else if (d == 2) lx[k] = k, ly[k] = x + y - k;",
-     "else if (d == 2) lx[k] = k, ly[k] = 0;"),
+    (
+        "centre counted once",
+        "g->line_count = (int16_t)(g->line_count + run);",
+        "g->line_count = (int16_t)(g->line_count + run - (g->line_count > 0));",
+    ),
+    (
+        "no anti-diagonal",
+        "else if (d == 2) lx[k] = k, ly[k] = x + y - k;",
+        "else if (d == 2) lx[k] = k, ly[k] = 0;",
+    ),
     ("four starting balls", "} while (g->free_cells != 76);", "} while (g->free_cells != 77);"),
     ("next drawn after the start", "    next_colours(g);\n    do {", "    do {"),
     # Not a mutant: skipping the re-check of the previous cell when the board is full changes
@@ -38,11 +54,21 @@ MUTANTS = [
     ("points (n-4)^2", "(int16_t)((count - 5) * (count - 5))", "(int16_t)((count - 4) * (count - 4))"),
     ("time factor /5000", "ln_real_const(0x008d, 0, 0x3b80)", "ln_real_const(0x008d, 0, 0x1c40)"),
     ("round down", "ln_real_round(ln_real_mul(", "ln_real_trunc(ln_real_mul("),
-    ("no 16-bit wrap", "uint16_t whole = (uint16_t)(t.hour * 3600u", "int32_t whole = (int32_t)(t.hour * 3600u"),
-    ("no midnight", "return ln_real_add(ln_real_sub(a, b), ln_real_const(0x0091, 0, 0x28c0));",
-     "return ln_real_sub(a, b);"),
-    ("hundredths ignored", "return ln_real_add(ln_real_from_long(whole), hundredths);",
-     "return ln_real_from_long(whole);"),
+    (
+        "no 16-bit wrap",
+        "uint16_t whole = (uint16_t)(t.hour * 3600u",
+        "int32_t whole = (int32_t)(t.hour * 3600u",
+    ),
+    (
+        "no midnight",
+        "return ln_real_add(ln_real_sub(a, b), ln_real_const(0x0091, 0, 0x28c0));",
+        "return ln_real_sub(a, b);",
+    ),
+    (
+        "hundredths ignored",
+        "return ln_real_add(ln_real_from_long(whole), hundredths);",
+        "return ln_real_from_long(whole);",
+    ),
 ]
 
 
@@ -62,11 +88,28 @@ def main() -> None:
             src = os.path.join(tmp, "ln_core.c")
             open(src, "w").write(original.replace(old, new, 1))
             exe = os.path.join(tmp, "replay")
-            subprocess.run(["cc", "-O2", "-std=c99", "-I", os.path.join(ROOT, "core"), "-o", exe, src,
-                            os.path.join(ROOT, "core", "ln_real48.c"), os.path.join(ROOT, "tests", "replay.c")], check=True)
+            subprocess.run(
+                [
+                    "cc",
+                    "-O2",
+                    "-std=c99",
+                    "-I",
+                    os.path.join(ROOT, "core"),
+                    "-o",
+                    exe,
+                    src,
+                    os.path.join(ROOT, "core", "ln_real48.c"),
+                    os.path.join(ROOT, "tests", "replay.c"),
+                ],
+                check=True,
+            )
             try:
-                r = subprocess.run([sys.executable, os.path.join(ROOT, "tests", "difftest.py"), exe, *seeds],
-                                   capture_output=True, text=True, timeout=120)
+                r = subprocess.run(
+                    [sys.executable, os.path.join(ROOT, "tests", "difftest.py"), exe, *seeds],
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
+                )
                 caught, how = r.returncode != 0, ""
             except subprocess.TimeoutExpired:
                 caught, how = True, " (hangs)"

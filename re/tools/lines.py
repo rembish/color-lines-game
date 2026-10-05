@@ -5,7 +5,8 @@
 
 Archive: a header starting "pcxLib", then entries back to back, each 84 bytes of header
 (0x01, the 8.3 name NUL-padded to 13 bytes, u32 size, u16 date, u16 time, the rest unused)
-followed by the PCX file itself. The PCX files are 16-colour, planar (1 bit x 4 planes), palette in the header.
+followed by the PCX file itself. The PCX files are 16-colour, planar (1 bit x 4 planes), with the
+palette in the header.
 """
 
 import os

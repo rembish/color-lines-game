@@ -13,11 +13,11 @@
 enum { PIC_FIELD, PIC_SPRITES, PIC_TRUMPETERS, PIC_TITLE, PIC_CELLS, PIC_COUNT };
 
 int pics_load(const unsigned char *lib, size_t len); /* 0 on success, see pics_error() */
-int pics_load_dir(const char *dir);                 /* LINES.LIB in dir, any case */
+int pics_load_dir(const char *dir);                  /* LINES.LIB in dir, any case */
 const char *pics_error(void);
 void pics_init(SDL_Renderer *r);
 /* part of a picture: (sx, sy, w, h) drawn with its top-left at (x, y) */
-void pics_draw(int pic, int sx, int sy, int w, int h, int x, int y);
+void pics_draw(int pic_id, int sx, int sy, int w, int h, int x, int y);
 void pics_fill(int x, int y, int w, int h, Uint8 r, Uint8 g, Uint8 b);
 
 #endif

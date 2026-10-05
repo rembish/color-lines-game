@@ -32,14 +32,22 @@ int main(int argc, char **argv)
     while (fgets(line, sizeof line, stdin)) { /* OP A B per line */
         b[0] = 0;
         if (sscanf(line, "%15s %63s %63s", op, a, b) < 2) continue;
-        if (!strcmp(op, "add")) show(ln_real_add(parse(a), parse(b)));
-        else if (!strcmp(op, "sub")) show(ln_real_sub(parse(a), parse(b)));
-        else if (!strcmp(op, "mul")) show(ln_real_mul(parse(a), parse(b)));
-        else if (!strcmp(op, "div")) show(ln_real_div(parse(a), parse(b)));
-        else if (!strcmp(op, "cmp")) printf("%d\n", ln_real_cmp(parse(a), parse(b)));
-        else if (!strcmp(op, "long")) show(ln_real_from_long((int32_t)strtol(a, 0, 10)));
-        else if (!strcmp(op, "round")) printf("%ld\n", (long)ln_real_round(parse(a)));
-        else if (!strcmp(op, "trunc")) printf("%ld\n", (long)ln_real_trunc(parse(a)));
+        if (!strcmp(op, "add"))
+            show(ln_real_add(parse(a), parse(b)));
+        else if (!strcmp(op, "sub"))
+            show(ln_real_sub(parse(a), parse(b)));
+        else if (!strcmp(op, "mul"))
+            show(ln_real_mul(parse(a), parse(b)));
+        else if (!strcmp(op, "div"))
+            show(ln_real_div(parse(a), parse(b)));
+        else if (!strcmp(op, "cmp"))
+            printf("%d\n", ln_real_cmp(parse(a), parse(b)));
+        else if (!strcmp(op, "long"))
+            show(ln_real_from_long((int32_t)strtol(a, 0, 10)));
+        else if (!strcmp(op, "round"))
+            printf("%ld\n", (long)ln_real_round(parse(a)));
+        else if (!strcmp(op, "trunc"))
+            printf("%ld\n", (long)ln_real_trunc(parse(a)));
     }
     return 0;
 }

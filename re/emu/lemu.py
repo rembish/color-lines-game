@@ -258,11 +258,23 @@ class Lines:
 def call_regs(game: Lines, seg: int, off: int, regs: dict[str, int]) -> tuple[dict[str, int], int]:
     """Far call seg:off with registers in and out (the System unit's Real routines take their
     operands in AX:BX:DX and CX:SI:DI). Returns the registers and EFLAGS."""
-    from unicorn.x86_const import UC_X86_REG_BX, UC_X86_REG_CX, UC_X86_REG_DI, UC_X86_REG_DX
-    from unicorn.x86_const import UC_X86_REG_EFLAGS, UC_X86_REG_SI
+    from unicorn.x86_const import (
+        UC_X86_REG_BX,
+        UC_X86_REG_CX,
+        UC_X86_REG_DI,
+        UC_X86_REG_DX,
+        UC_X86_REG_EFLAGS,
+        UC_X86_REG_SI,
+    )
 
-    names = {"ax": UC_X86_REG_AX, "bx": UC_X86_REG_BX, "cx": UC_X86_REG_CX, "dx": UC_X86_REG_DX,
-             "si": UC_X86_REG_SI, "di": UC_X86_REG_DI}
+    names = {
+        "ax": UC_X86_REG_AX,
+        "bx": UC_X86_REG_BX,
+        "cx": UC_X86_REG_CX,
+        "dx": UC_X86_REG_DX,
+        "si": UC_X86_REG_SI,
+        "di": UC_X86_REG_DI,
+    }
     mu = game.mu
     mu.reg_write(UC_X86_REG_DS, DS)
     mu.reg_write(UC_X86_REG_SS, STACK_SEG)

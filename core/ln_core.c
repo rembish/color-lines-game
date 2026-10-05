@@ -66,10 +66,14 @@ static void check_lines(ln_game *g, int x, int y)
         /* the 9 cells of the line, k = 1..9 as the original walks them */
         int lx[LN_SIZE + 1], ly[LN_SIZE + 1], c[LN_SIZE + 1];
         for (int k = 1; k <= LN_SIZE; k++) {
-            if (d == 0) lx[k] = k, ly[k] = y;                 /* line_row (12c9) */
-            else if (d == 1) lx[k] = x, ly[k] = k;            /* line_column (131d) */
-            else if (d == 2) lx[k] = k, ly[k] = x + y - k;    /* anti-diagonal (1391) */
-            else lx[k] = k, ly[k] = k + (y - x);              /* diagonal (1436) */
+            if (d == 0)
+                lx[k] = k, ly[k] = y; /* line_row (12c9) */
+            else if (d == 1)
+                lx[k] = x, ly[k] = k; /* line_column (131d) */
+            else if (d == 2)
+                lx[k] = k, ly[k] = x + y - k; /* anti-diagonal (1391) */
+            else
+                lx[k] = k, ly[k] = k + (y - x); /* diagonal (1436) */
             c[k] = (ly[k] >= 1 && ly[k] <= LN_SIZE) ? g->board[lx[k]][ly[k]] : 0;
         }
         int run = 0;

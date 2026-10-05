@@ -61,7 +61,7 @@ int main(int argc, char **argv)
             before = *g;
             if (ln_move(g, atoi(argv[a + 1]), atoi(argv[a + 2]), atoi(argv[a + 3]), atoi(argv[a + 4]),
                         clock_of(0), clock_of(0)) ||
-                memcmp(&before, g, sizeof before)) {
+                memcmp(&before, g, sizeof before) != 0) {
                 fprintf(stderr, "the core took a move the original refused\n");
                 return 4;
             }

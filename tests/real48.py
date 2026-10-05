@@ -68,21 +68,21 @@ def main() -> None:
             a = bytes([rnd.randrange(0x78, 0x9F)]) + a[1:]
         cases.append((op, a, rnd.randrange(-(1 << 31), 1 << 31) if op == "long" else b))
     lines = []
-    for op, a, b in cases:
-        if op == "long":
-            lines.append(f"long {b} 0")
+    for op, a, arg in cases:
+        if isinstance(arg, int):
+            lines.append(f"long {arg} 0")
         else:
-            assert isinstance(b, bytes)
-            lines.append(f"{op} {a.hex()} {b.hex()}")
+            lines.append(f"{op} {a.hex()} {arg.hex()}")
     exe = os.path.join(ROOT, "build", "real48")
     mine = subprocess.run([exe], input="\n".join(lines) + "\n", capture_output=True, text=True).stdout.split()
     bad = 0
-    for (op, a, b), got in zip(cases, mine, strict=True):
-        want = original(g, op, a, b)
+    for (op, a, arg), got in zip(cases, mine, strict=True):
+        want = original(g, op, a, arg)
         if want != got:
             bad += 1
             if bad <= 10:
-                print(f"{op} {a.hex()} {b if isinstance(b, int) else b.hex()}: original {want}, port {got}")
+                shown = arg if isinstance(arg, int) else arg.hex()
+                print(f"{op} {a.hex()} {shown}: original {want}, port {got}")
     print(f"{len(cases) - bad}/{len(cases)} equal")
     sys.exit(1 if bad else 0)
 

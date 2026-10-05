@@ -56,7 +56,11 @@ def line_len(board: list[list[int]], x: int, y: int, c: int) -> int:
         n = 1
         for s in (1, -1):
             k = 1
-            while 0 <= x + s * k * dx < 9 and 0 <= y + s * k * dy < 9 and board[y + s * k * dy][x + s * k * dx] == c:
+            while (
+                0 <= x + s * k * dx < 9
+                and 0 <= y + s * k * dy < 9
+                and board[y + s * k * dy][x + s * k * dx] == c
+            ):
                 n += 1
                 k += 1
         best = max(best, n)
@@ -217,9 +221,9 @@ def record(seed: int, scenario: bool = False) -> dict[str, Any]:
                 pending["rejected"] = [fx + 1, fy + 1, b[0] + 1, b[1] + 1]
         think = rnd.choice([rnd.randrange(50, 2000), rnd.randrange(50, 2000), rnd.randrange(100000, 400000)])
         if crafted.get("tie"):
-            b = [row[:] for row in board]
-            b[ty][tx], b[fy][fx] = b[fy][fx], 0
-            n = line_cells(b, tx, ty)
+            after = [row[:] for row in board]
+            after[ty][tx], after[fy][fx] = after[fy][fx], 0
+            n = line_cells(after, tx, ty)
             if n >= 5:
                 think = tie_think((n - 5) ** 2 + 5, rnd)
             crafted["tie"] = False
@@ -240,8 +244,13 @@ def record(seed: int, scenario: bool = False) -> dict[str, Any]:
     g.key_source = keys_logged
     g.on_time = on_time
     g.call(PLAY_GAME)
-    end = {"board": g.board(), "score": g.ru16(SCORE), "free": g.r16(FREE), "seed": g.ru32(RANDSEED),
-           "line_count": g.r16(LINE_COUNT)}
+    end = {
+        "board": g.board(),
+        "score": g.ru16(SCORE),
+        "free": g.r16(FREE),
+        "seed": g.ru32(RANDSEED),
+        "line_count": g.r16(LINE_COUNT),
+    }
     check(turns, end)
     log: dict[str, Any] = {"seed": seed, "clock": start, "turns": turns, "end": end}
     if scenario:
@@ -272,8 +281,12 @@ def check(turns: list[dict[str, Any]], end: dict[str, Any]) -> None:
         if gained > 0:
             if gained < 1:
                 raise AssertionError("a line scored nothing")
-            removed = [(x, y) for y in range(9) for x in range(9) if a["board"][y][x] and not b["board"][y][x]
-                       and (x, y) != (fx - 1, fy - 1)]
+            removed = [
+                (x, y)
+                for y in range(9)
+                for x in range(9)
+                if a["board"][y][x] and not b["board"][y][x] and (x, y) != (fx - 1, fy - 1)
+            ]
             if any(a["board"][y][x] != colour for x, y in removed):
                 raise AssertionError(f"a line removed other colours: {removed}")
 

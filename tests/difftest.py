@@ -1,6 +1,6 @@
 """Compare the core (build/replay) with the original's games (re/emu/logs, made by record.py).
 
-    python3 tests/difftest.py [build/replay] [SEED...]      default: every log there is
+python3 tests/difftest.py [build/replay] [SEED...]      default: every log there is
 """
 
 import glob

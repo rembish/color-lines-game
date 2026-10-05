@@ -11,18 +11,18 @@ typedef struct {
     int cf;
 } regs;
 
-#define AL(r)     ((uint8_t)((r).ax & 0xff))
-#define AH(r)     ((uint8_t)((r).ax >> 8))
+#define AL(r)        ((uint8_t)((r).ax & 0xff))
+#define AH(r)        ((uint8_t)((r).ax >> 8))
 #define SET_AL(r, v) ((r).ax = (uint16_t)(((r).ax & 0xff00) | ((v) & 0xff)))
 #define SET_AH(r, v) ((r).ax = (uint16_t)(((r).ax & 0x00ff) | (((v) & 0xff) << 8)))
-#define CL(r)     ((uint8_t)((r).cx & 0xff))
-#define CH(r)     ((uint8_t)((r).cx >> 8))
+#define CL(r)        ((uint8_t)((r).cx & 0xff))
+#define CH(r)        ((uint8_t)((r).cx >> 8))
 #define SET_CL(r, v) ((r).cx = (uint16_t)(((r).cx & 0xff00) | ((v) & 0xff)))
 #define SET_CH(r, v) ((r).cx = (uint16_t)(((r).cx & 0x00ff) | (((v) & 0xff) << 8)))
-#define BL(r)     ((uint8_t)((r).bx & 0xff))
-#define BH(r)     ((uint8_t)((r).bx >> 8))
-#define DL(r)     ((uint8_t)((r).dx & 0xff))
-#define DH(r)     ((uint8_t)((r).dx >> 8))
+#define BL(r)        ((uint8_t)((r).bx & 0xff))
+#define BH(r)        ((uint8_t)((r).bx >> 8))
+#define DL(r)        ((uint8_t)((r).dx & 0xff))
+#define DH(r)        ((uint8_t)((r).dx >> 8))
 
 static ln_real pack(const regs *r)
 {
@@ -228,8 +228,14 @@ static void mul(regs *r)
     SET_AL(*r, e);
     if (!exponent(r, (int)(e >> 8))) return;
     /* push ax, di, si, cx: the multiplier's bytes and the sign */
-    uint8_t stack[8] = { CL(*r), CH(*r), (uint8_t)(r->si & 0xff), (uint8_t)(r->si >> 8),
-                         (uint8_t)(r->di & 0xff), (uint8_t)(r->di >> 8), AL(*r), AH(*r) };
+    uint8_t stack[8] = { CL(*r),
+                         CH(*r),
+                         (uint8_t)(r->si & 0xff),
+                         (uint8_t)(r->si >> 8),
+                         (uint8_t)(r->di & 0xff),
+                         (uint8_t)(r->di >> 8),
+                         AL(*r),
+                         AH(*r) };
     SET_CH(*r, AH(*r));
     r->si = r->bx;
     r->di = r->dx;
@@ -365,13 +371,11 @@ int ln_real_cmp(ln_real a, ln_real b)
     int c;
     if (AL(r) != CL(r))
         c = AL(r) < CL(r) ? -1 : 1;
-    else if (AL(r) == 0)
-        c = 0;
-    else if (r.dx != r.di)
+    else if (AL(r) != 0 && r.dx != r.di) /* both zero: equal whatever the mantissas */
         c = r.dx < r.di ? -1 : 1;
-    else if (r.bx != r.si)
+    else if (AL(r) != 0 && r.bx != r.si)
         c = r.bx < r.si ? -1 : 1;
-    else if (AH(r) != CH(r))
+    else if (AL(r) != 0 && AH(r) != CH(r))
         c = AH(r) < CH(r) ? -1 : 1;
     else
         c = 0;

@@ -13,7 +13,8 @@ static ln_time clock_of(int32_t c)
 {
     c %= 24 * 360000;
     if (c < 0) c += 24 * 360000;
-    ln_time t = { (uint16_t)(c / 360000), (uint16_t)(c / 6000 % 60), (uint16_t)(c / 100 % 60), (uint16_t)(c % 100) };
+    ln_time t = { (uint16_t)(c / 360000), (uint16_t)(c / 6000 % 60), (uint16_t)(c / 100 % 60),
+                  (uint16_t)(c % 100) };
     return t;
 }
 

@@ -22,16 +22,16 @@ typedef struct {
 } ln_time;
 
 typedef struct {
-    uint32_t seed;                            /* Turbo Pascal RandSeed */
+    uint32_t seed;                           /* Turbo Pascal RandSeed */
     int16_t board[LN_SIZE + 1][LN_SIZE + 1]; /* board[x][y], x, y = 1..9, 0 empty, 1..7 colour */
     int16_t free_cells;
-    int16_t balls;                            /* placed so far (ds:343c) */
+    int16_t balls; /* placed so far (ds:343c) */
     uint16_t score;
-    int16_t next[4];                          /* next colours [1..next_count] */
+    int16_t next[4]; /* next colours [1..next_count] */
     int16_t next_count;
-    int16_t colour;                           /* the ball last moved or placed (ds:34a2) */
-    int16_t last_x, last_y;                   /* the cell last placed (ds:39e4, ds:39e6) */
-    int16_t line_count;                       /* cells in lines at the last check (ds:326c) */
+    int16_t colour;         /* the ball last moved or placed (ds:34a2) */
+    int16_t last_x, last_y; /* the cell last placed (ds:39e4, ds:39e6) */
+    int16_t line_count;     /* cells in lines at the last check (ds:326c) */
 } ln_game;
 
 uint16_t ln_random(ln_game *g, uint16_t n);
