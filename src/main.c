@@ -39,6 +39,8 @@ static int anim, anim_step;
 static Uint32 anim_t;
 static int path_x[82], path_y[82], path_n;
 static int demo;
+static int watch;            /* the demo at a human's pace (--record) */
+static int demo_tx, demo_ty; /* where the selected ball will go */
 static top_table top;
 static char name_buf[TOP_NAME + 1];
 static int new_rank; /* 1..10 where the new score went, 0 none */
@@ -436,7 +438,7 @@ static void click_cell(int x, int y)
 
 static void animate(void)
 {
-    Uint32 step = anim == AN_MOVE ? (demo ? 10u : 30u) : (demo ? 30u : 90u);
+    Uint32 step = anim == AN_MOVE ? (demo && !watch ? 10u : 30u) : (demo && !watch ? 30u : 90u);
     if (now - anim_t < step) return;
     anim_t = now;
     anim_step++;
@@ -510,6 +512,11 @@ static void demo_move(void)
         }
     if (best < 0) return;
     sel_x = bx, sel_y = by;
+    if (watch) { /* select now, move after a little bounce */
+        demo_tx = tx, demo_ty = ty;
+        cur_x = bx, cur_y = by;
+        return;
+    }
     click_cell(tx, ty);
 }
 
@@ -707,6 +714,68 @@ static void frame(void)
 #endif
 }
 
+/* --record DIR SECONDS SEED: a clip, the title then the demo at a human's pace; writes
+ * DIR/lines.rgb (640x350 RGB, 30 frames a second) and DIR/lines.s16 (44100 Hz mono) */
+static int record(const char *dir, int seconds, uint32_t seed)
+{
+    char path[1100];
+    snprintf(path, sizeof path, "%s/lines.rgb", dir);
+    FILE *v = fopen(path, "wb");
+    snprintf(path, sizeof path, "%s/lines.s16", dir);
+    FILE *a = fopen(path, "wb");
+    if (!v || !a) {
+        if (v) fclose(v);
+        if (a) fclose(a);
+        return 1;
+    }
+    audio_offline();
+    demo = watch = 1;
+    demo_seed = seed;
+    static unsigned char px[SCREEN_W * SCALE * SCREEN_H * SCALE * 4], rgb[SCREEN_W * SCREEN_H * 3];
+    static short pcm[AUDIO_RATE / 30 + 1];
+    for (int f = 0; f < seconds * 30; f++) {
+        now = (Uint32)(f * 1000 / 30);
+        if (f < 75)
+            sc = SC_TITLE;
+        else if (sc == SC_TITLE) {
+            new_game(seed);
+            anim_t = now;
+        }
+        if (sc == SC_GAME) {
+            if (anim)
+                animate();
+            else {
+                int had = crown_frame;
+                kings_update();
+                if (crown_frame && !had) fprintf(stderr, "crown at %.1f s\n", f / 30.0);
+                if (!crown_frame && now - anim_t > 450) {
+                    if (sel_x) {
+                        cur_x = demo_tx, cur_y = demo_ty;
+                        click_cell(demo_tx, demo_ty);
+                    } else
+                        demo_move();
+                    anim_t = now;
+                }
+            }
+        }
+        render();
+        SDL_SetRenderTarget(ren, screen);
+        SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_RGBA32, px, SCREEN_W * SCALE * 4);
+        for (int y = 0; y < SCREEN_H; y++)
+            for (int x = 0; x < SCREEN_W; x++)
+                memcpy(rgb + (y * SCREEN_W + x) * 3,
+                       px + ((y * SCALE + 1) * SCREEN_W * SCALE + x * SCALE + 1) * 4, 3);
+        fwrite(rgb, 1, sizeof rgb, v);
+        int n = AUDIO_RATE * (f + 1) / 30 - AUDIO_RATE * f / 30;
+        audio_render(pcm, n);
+        fwrite(pcm, 2, (size_t)n, a);
+    }
+    fclose(v);
+    fclose(a);
+    printf("score %u, best %u, crowned %d\n", G.score, top.score[0], crowned);
+    return 0;
+}
+
 /* --shot FILE WHAT: a screen to a BMP (title, game, top, help) */
 static int shot(const char *file, const char *what)
 {
@@ -757,12 +826,20 @@ static int shot(const char *file, const char *what)
 
 int main(int argc, char **argv)
 {
-    const char *shot_file = NULL, *shot_what = "title", *dir = NULL;
+    const char *shot_file = NULL, *shot_what = "title", *dir = NULL, *rec_dir = NULL;
+    int rec_seconds = 60;
+    uint32_t rec_seed = 1;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--shot") && i + 2 < argc) {
             shot_file = argv[i + 1];
             shot_what = argv[i + 2];
             i += 2;
+        } else if (!strcmp(argv[i], "--record") && i + 3 < argc) {
+            rec_dir = argv[i + 1];
+            rec_seconds = atoi(argv[i + 2]);
+            rec_seed = (uint32_t)strtoul(argv[i + 3], 0, 0);
+            shot_file = "";
+            i += 3;
         } else if (!strcmp(argv[i], "--demo"))
             demo = 1;
         else if (argv[i][0] != '-')
@@ -793,6 +870,10 @@ int main(int argc, char **argv)
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
     screen = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, SCREEN_W * SCALE,
                                SCREEN_H * SCALE);
+    if (rec_dir) {
+        top_readonly = 1;
+        return record(rec_dir, rec_seconds, rec_seed);
+    }
     if (shot_file) return shot(shot_file, shot_what) == 0 ? 0 : 1;
     audio_init();
     demo_seed = (uint32_t)time(NULL);
