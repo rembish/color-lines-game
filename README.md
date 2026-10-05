@@ -8,6 +8,12 @@ reverse-engineered port of `LINES.EXE` to portable C + SDL2: it runs natively an
 **Play in the browser:** <https://lines.rembi.sh/> — with a global Top Ten. The page downloads the
 original's pictures for you from the Internet Archive (one click), or takes your own copy.
 
+[<img src="https://github.com/rembish/color-lines-game/releases/download/v0.1.0/lines.gif" width="480" alt="The pretender takes the king's crown">](https://github.com/rembish/color-lines-game/releases/download/v0.1.0/lines.mp4)
+
+*Click for the video with the PC speaker: the demo plays at a human's pace until the pretender
+passes the king's 100 points and takes his crown. Made with `tools/clips.sh` from your own copy
+of the game; the clips live in the releases, never in the repository.*
+
 The goal has two halves:
 
 1. **Game logic: decompiled faithfully.** The Turbo Pascal random number generator and every
@@ -51,6 +57,7 @@ the Top Ten stays on this computer.
 cmake -S . -B build && cmake --build build -j
 ./build/lines            # looks for LINES.LIB in original/ or a folder you name
 make help                # the everyday commands; `make check` is what CI runs
+tools/clips.sh 75 3 62   # the clip above (needs ffmpeg and original/)
 ```
 
 Browser: `make web` (Emscripten; the web build and the server's core into `cloudflare/`),
