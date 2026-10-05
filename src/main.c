@@ -13,13 +13,14 @@
 
 #include "audio.h"
 #include "ln_core.h"
+#include "net.h"
 #include "pics.h"
 #include "store.h"
 #include "top.h"
 
 #define SCALE 3
 
-enum { SC_TITLE, SC_GAME, SC_HELP, SC_NAME, SC_TOP };
+enum { SC_TITLE, SC_WAIT, SC_GAME, SC_HELP, SC_NAME, SC_SUBMIT, SC_TOP };
 enum { AN_NONE, AN_MOVE, AN_VANISH, AN_GROW };
 
 static SDL_Window *win;
@@ -42,6 +43,13 @@ static top_table top;
 static char name_buf[TOP_NAME + 1];
 static int new_rank;                   /* 1..10 where the new score went, 0 none */
 static int ignore_text;
+static int online;                     /* dealt by lines.rembi.sh: the score goes to the global Top Ten */
+static Uint32 wait_until;
+static char *moves;                    /* JSON [[fx,fy,tx,ty,t0,t1],...] of this game, for the server */
+static size_t moves_len, moves_cap;
+static top_table global;               /* the global Top Ten, when the server answered */
+static int have_global;
+static const char *msg;
 
 /* the original's screen positions (init, 346f) */
 #define CELL_X(x) (170 + 34 * ((x) - 1))
@@ -58,12 +66,21 @@ static int ignore_text;
 #define PANEL_X 204
 #define PANEL_Y 84
 
+/* the time of day as GetTime gives it, from one clock: the wall time when the program started
+ * plus SDL's milliseconds since (seconds and hundredths must never disagree) */
 static ln_time clock_now(void)
 {
-    time_t t = time(NULL);
-    struct tm *tm = localtime(&t);
-    ln_time c = { (uint16_t)tm->tm_hour, (uint16_t)tm->tm_min, (uint16_t)tm->tm_sec,
-                  (uint16_t)(SDL_GetTicks() / 10 % 100) };
+    static Uint32 base_ticks;
+    static unsigned long base_ms; /* of the day */
+    if (!base_ms && !base_ticks) {
+        time_t t = time(NULL);
+        struct tm *tm = localtime(&t);
+        base_ms = ((unsigned long)tm->tm_hour * 3600ul + (unsigned long)tm->tm_min * 60ul + (unsigned long)tm->tm_sec) * 1000ul;
+        base_ticks = SDL_GetTicks();
+    }
+    unsigned long ms = (base_ms + (SDL_GetTicks() - base_ticks)) % 86400000ul;
+    ln_time c = { (uint16_t)(ms / 3600000ul), (uint16_t)(ms / 60000ul % 60), (uint16_t)(ms / 1000ul % 60),
+                  (uint16_t)(ms / 10ul % 100) };
     return c;
 }
 
@@ -166,14 +183,18 @@ static void draw_game(void)
 
 static void draw_top(void)
 {
+    const top_table *t = online && have_global ? &global : &top;
     pics_draw(PIC_SPRITES, 0, 0, 239, 169, PANEL_X, PANEL_Y);
     for (int k = 0; k < TOP_N; k++) {
         int y = PANEL_Y + 31 + 10 * k;
-        text(top.name[k], PANEL_X + 52, y);
+        text(t->name[k], PANEL_X + 52, y);
         char s[8];
-        snprintf(s, sizeof s, "%5u", top.score[k]);
+        snprintf(s, sizeof s, "%5u", t->score[k]);
         text(s, PANEL_X + 209 - 45, y);
     }
+    if (msg) text(msg, PANEL_X + 120 - (int)strlen(msg) * 9 / 2, PANEL_Y + 172);
+    else if (online && have_global && sc == SC_TOP) text("The whole world's", PANEL_X + 43, PANEL_Y + 172);
+    if (sc == SC_SUBMIT) text("Telling the king...", PANEL_X + 34, PANEL_Y + 172);
     if (sc == SC_NAME) {
         int x = text(name_buf, PANEL_X + 120, PANEL_Y + 148);
         if (now / 300 % 2) pics_fill(x, PANEL_Y + 157, 8, 1, 255, 255, 85);
@@ -184,12 +205,12 @@ static void render(void)
 {
     SDL_SetRenderTarget(ren, screen);
     SDL_RenderSetScale(ren, SCALE, SCALE);
-    if (sc == SC_TITLE)
+    if (sc == SC_TITLE || sc == SC_WAIT)
         pics_draw(PIC_TITLE, 0, 0, SCREEN_W, SCREEN_H, 0, 0);
     else {
         draw_game();
         if (sc == SC_HELP) pics_draw(PIC_SPRITES, 238, 0, 239, 169, PANEL_X, PANEL_Y);
-        if (sc == SC_NAME || sc == SC_TOP) draw_top();
+        if (sc == SC_NAME || sc == SC_TOP || sc == SC_SUBMIT) draw_top();
     }
     SDL_RenderSetScale(ren, 1, 1);
 }
@@ -213,9 +234,51 @@ static void present(void)
 
 /* ---- game ---- */
 
+static unsigned hundredths(ln_time t)
+{
+    return ((t.hour * 60u + t.minute) * 60u + t.second) * 100u + t.hundredths;
+}
+
+static void log_move(int fx, int fy, int tx, int ty, ln_time a, ln_time b)
+{
+    char m[80];
+    int n = snprintf(m, sizeof m, "%s[%d,%d,%d,%d,%u,%u]", moves_len > 1 ? "," : "", fx, fy, tx, ty, hundredths(a),
+                     hundredths(b));
+    if (moves_len + (size_t)n + 2 > moves_cap) {
+        moves_cap = moves_cap ? moves_cap * 2 : 4096;
+        char *grown = realloc(moves, moves_cap);
+        if (!grown) return;
+        moves = grown;
+    }
+    memcpy(moves + moves_len, m, (size_t)n + 1);
+    moves_len += (size_t)n;
+}
+
+/* "score name" lines into a table */
+static void parse_top(char *buf, top_table *t)
+{
+    memset(t, 0, sizeof *t);
+    int k = 0;
+    for (char *line = strtok(buf, "\n"); line && k < TOP_N; line = strtok(NULL, "\n")) {
+        unsigned sc_ = 0;
+        int used = 0;
+        if (sscanf(line, "%u %n", &sc_, &used) < 1) continue;
+        t->score[k] = sc_;
+        snprintf(t->name[k++], sizeof t->name[0], "%s", line + used);
+    }
+    for (; k < TOP_N; k++) snprintf(t->name[k], sizeof t->name[0], "- Empty -");
+}
+
 static void new_game(uint32_t seed)
 {
     ln_new_game(&G, seed);
+    moves_len = 0;
+    if (!moves_cap) {
+        moves_cap = 4096;
+        moves = malloc(moves_cap);
+    }
+    if (moves) strcpy(moves, "[");
+    moves_len = 1;
     sel_x = sel_y = 0;
     anim = AN_NONE;
     t0 = clock_now();
@@ -224,9 +287,11 @@ static void new_game(uint32_t seed)
 
 static void game_over(void)
 {
-    new_rank = top_rank(&top, G.score);
+    msg = NULL;
+    new_rank = online && have_global ? top_rank(&global, G.score) : top_rank(&top, G.score);
     if (new_rank) {
-        name_buf[0] = 0;
+        int n = store_read("name.txt", name_buf, TOP_NAME);
+        name_buf[n > 0 ? n : 0] = 0;
         ignore_text = 1;
         SDL_StartTextInput();
         sc = SC_NAME;
@@ -277,6 +342,7 @@ static void click_cell(int x, int y)
         return;
     }
     ln_time t1 = clock_now();
+    log_move(sel_x, sel_y, x, y, t0, t1);
     shown = G;
     route(sel_x, sel_y, x, y);
     shown.colour = G.board[sel_x][sel_y];
@@ -370,8 +436,12 @@ static void key(SDL_Keysym ks)
     case SC_TITLE:
         if (ks.sym == SDLK_ESCAPE)
             running = 0;
-        else
-            new_game((uint32_t)time(NULL) ^ (uint32_t)SDL_GetPerformanceCounter());
+        else { /* ask the club for a game; play offline if it does not answer soon */
+            net_new_game();
+            net_top();
+            wait_until = now + 1500;
+            sc = SC_WAIT;
+        }
         break;
     case SC_HELP: sc = SC_GAME; break;
     case SC_TOP: sc = SC_TITLE; break;
@@ -379,10 +449,22 @@ static void key(SDL_Keysym ks)
         if (ks.sym == SDLK_BACKSPACE && name_buf[0])
             name_buf[strlen(name_buf) - 1] = 0;
         else if (ks.sym == SDLK_RETURN || ks.sym == SDLK_KP_ENTER) {
+            const char *name = name_buf[0] ? name_buf : "Anonymous";
             SDL_StopTextInput();
-            top_insert(&top, new_rank, name_buf[0] ? name_buf : "Anonymous", G.score);
-            top_save(&top);
-            sc = SC_TOP;
+            store_write("name.txt", name, (int)strlen(name));
+            int r = top_rank(&top, G.score);
+            if (r) {
+                top_insert(&top, r, name, G.score);
+                top_save(&top);
+            }
+            if (online && moves) {
+                moves[moves_len] = ']';
+                moves[moves_len + 1] = 0;
+                net_submit(name, moves);
+                moves[moves_len] = 0;
+                sc = SC_SUBMIT;
+            } else
+                sc = SC_TOP;
         }
         break;
     case SC_GAME:
@@ -466,11 +548,47 @@ static void frame(void)
     }
     ignore_text = 0;
     now = SDL_GetTicks();
+    if (sc == SC_WAIT) {
+        uint32_t seed;
+        static char tb[2048];
+        if (net_top_result(tb, sizeof tb) == NET_OK && !have_global) {
+            parse_top(tb, &global);
+            have_global = 1;
+        }
+        online = net_game_seed(&seed);
+        if (online || now > wait_until)
+            new_game(online ? seed : (uint32_t)time(NULL) ^ (uint32_t)SDL_GetPerformanceCounter());
+    }
+    if (sc == SC_SUBMIT) {
+        static char rb[2048];
+        int r = net_result(rb, sizeof rb);
+        if (r == NET_OK) {
+            char *nl = strchr(rb, '\n');
+            if (nl) {
+                parse_top(nl + 1, &global);
+                have_global = 1;
+            }
+            sc = SC_TOP;
+        } else if (r == NET_TAKEN) {
+            msg = "Name taken: another one?";
+            name_buf[0] = 0;
+            SDL_StartTextInput();
+            sc = SC_NAME;
+        } else if (r == NET_FAILED) {
+            msg = "The club did not answer";
+            online = 0;
+            sc = SC_TOP;
+        }
+    }
     if (sc == SC_GAME) {
         if (anim) animate();
         else if (demo && now - anim_t > 150) demo_move();
     }
-    if (demo && sc == SC_TOP && now - anim_t > 3000) new_game((uint32_t)rand());
+    if (demo && sc == SC_TOP && now - anim_t > 3000) {
+        net_new_game();
+        wait_until = now + 1500;
+        sc = SC_WAIT;
+    }
     if (demo && sc == SC_NAME) {
         snprintf(name_buf, sizeof name_buf, "Demo");
         SDL_Keysym ks = { 0 };
@@ -554,7 +672,12 @@ int main(int argc, char **argv)
     if (shot_file) return shot(shot_file, shot_what) == 0 ? 0 : 1;
     audio_init();
     srand((unsigned)time(NULL));
-    if (demo) new_game((uint32_t)time(NULL));
+    if (demo) { /* as from the title: the club deals if it answers */
+        net_new_game();
+        net_top();
+        wait_until = SDL_GetTicks() + 1500;
+        sc = SC_WAIT;
+    }
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(frame, 0, 1);
 #else

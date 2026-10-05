@@ -30,7 +30,7 @@ add_executable(real48 tests/real48.c)
 target_link_libraries(real48 PRIVATE lncore)
 
 # The game. It reads LINES.LIB from the player's own copy at run time.
-add_executable(lines src/main.c src/pics.c src/top.c src/store.c src/audio.c)
+add_executable(lines src/main.c src/pics.c src/top.c src/store.c src/audio.c src/net.c)
 target_link_libraries(lines PRIVATE lncore)
 if(EMSCRIPTEN)
   target_compile_options(lines PRIVATE -sUSE_SDL=2)

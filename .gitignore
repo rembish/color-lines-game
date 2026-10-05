@@ -19,3 +19,9 @@ re/ghidra/*_decomp.c
 re/emu/logs/
 assets-local/
 clips/
+
+# Pages build output (cloudflare/build.sh)
+cloudflare/public/
+cloudflare/lib/core.wasm
+cloudflare/.dev.vars
+cloudflare/.wrangler/

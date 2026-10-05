@@ -1,0 +1,15 @@
+# The browser game and its global Top Ten on Cloudflare Pages: lines.rembi.sh.
+#   public/      the web build (cloudflare/build.sh puts it there)
+#   functions/   /api/game, /api/name, /api/result, /api/top
+#   lib/         the Top Ten logic and the core as WebAssembly (core.wasm, built by build.sh)
+# Deploys run from GitHub Actions (.github/workflows/pages.yml). The HMAC secret is set once:
+#   npx wrangler pages secret put LINES_SECRET --project-name color-lines-game
+name = "color-lines-game"
+pages_build_output_dir = "public"
+compatibility_date = "2025-09-01"
+
+# names, the Top Ten, used game tokens, rate-limit counters
+#   npx wrangler kv namespace create LINES_TOP
+[[kv_namespaces]]
+binding = "TOP"
+id = "KV_ID_PLACEHOLDER"
