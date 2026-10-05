@@ -182,6 +182,9 @@ def record(seed: int, scenario: bool = False) -> dict[str, Any]:
             )
         else:
             turns[-1]["t"] = [times[-2], clock]
+            # the move is accepted, not made yet: the wasted attempts changed nothing
+            if g.board() != turns[-1]["board"] or g.ru32(RANDSEED) != turns[-1]["seed"]:
+                raise AssertionError("a rejected attempt or reselect changed the game")
 
     def keys() -> list[int]:
         board = g.board()
@@ -211,6 +214,7 @@ def record(seed: int, scenario: bool = False) -> dict[str, Any]:
                 b = rnd.choice(bad)
                 out += path_keys(cur, b) + [K_SPACE]
                 cur = b
+                pending["rejected"] = [fx + 1, fy + 1, b[0] + 1, b[1] + 1]
         think = rnd.choice([rnd.randrange(50, 2000), rnd.randrange(50, 2000), rnd.randrange(100000, 400000)])
         if crafted.get("tie"):
             b = [row[:] for row in board]
@@ -226,8 +230,11 @@ def record(seed: int, scenario: bool = False) -> dict[str, Any]:
         return out
 
     def keys_logged() -> list[int]:
+        pending.pop("rejected", None)
         out = keys()
         turns[-1]["move"] = pending["move"]
+        if "rejected" in pending:
+            turns[-1]["rejected"] = pending["rejected"]
         return out
 
     g.key_source = keys_logged

@@ -105,3 +105,19 @@ score. Missing file: #1 "Handicap" 100 points, the rest "- Empty -" 0. After a g
 a score above #10 the player types a name (up to 13 chars) and the table is shifted and saved.
 `ds:343a` = #1's score: the king on the left is the record holder, the pretender on the right
 grows with `score * 20 / best` (`0a72`) and takes the crown when the score passes it.
+
+## For the frontend
+
+- `t0` is read at the top of a turn, after the previous turn's placements; `t1` when a reachable
+  destination is accepted. Reselecting and refused attempts in between count as thinking time.
+  The port measures the same interval and the replay log keeps both readings per move.
+- Keyboard and mouse end in the same cell arithmetic, `x = (px - 0x88) / 0x22`,
+  `y = (py - 0x24) / 0x18` (1..9): a click on a ball (re)selects it, on an empty reachable cell
+  moves, on an unreachable one beeps (`Sound(220)` for 200 ms) and changes nothing.
+- The moved ball's route follows `find_paths`' parents (neighbours up, down, left, right); it is
+  cosmetic. The selected ball bounces on the clock (`0c15`, `0dfa`): cosmetic too.
+- Top Ten: a new score goes above the first entry whose score is strictly lower (an equal score
+  does not displace); names up to 13 characters. F4 ends the game but still offers the entry;
+  Esc does not.
+- The king (left) is Top Ten #1; the pretender (right) grows with `score * 20 / best` and takes
+  the crown when the score passes it (`0a72`, `086e`).

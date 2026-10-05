@@ -15,6 +15,7 @@ SRC = os.path.join(ROOT, "core", "ln_core.c")
 ONLY = os.environ.get("ONLY")
 
 MUTANTS = [
+    ("always reachable", "    if (!ln_reachable(g, fx, fy, tx, ty)) return 0;\n    g->colour", "    g->colour"),
     ("rng multiplier", "0x08088405u", "0x08088404u"),
     ("positions from Random(81)", "ln_random(g, 80)", "ln_random(g, 81)"),
     ("probe wraps at 80", "if (++k == 81) k = 0;", "if (++k == 80) k = 0;"),

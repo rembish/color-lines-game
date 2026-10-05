@@ -19,6 +19,8 @@ def moves(log: dict[str, Any]) -> list[str]:
     if "inject" in log:
         out += ["B"] + [str(c) for row in log["inject"] for c in row]
     for t in log["turns"]:
+        if "rejected" in t:
+            out += ["X"] + [str(v) for v in t["rejected"]]
         if "move" in t:
             out += [str(v) for v in t["move"]] + [str(v) for v in t["t"]]
     return out
