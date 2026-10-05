@@ -1,7 +1,8 @@
 """LINES.LIB, the pictures of Color Lines (1992): a Genus "pcxLib" archive of PCX images.
 
     python3 re/tools/lines.py list            the entries
-    python3 re/tools/lines.py extract DIR     each picture as DIR/NAME.png (needs Pillow)
+    python3 re/tools/lines.py extract [DIR]   each picture as a PNG, and the pieces the game cuts
+                                              from them (default assets-local/lines; Pillow)
 
 Archive: a header starting "pcxLib", then entries back to back, each 84 bytes of header
 (0x01, the 8.3 name NUL-padded to 13 bytes, u32 size, u16 date, u16 time, the rest unused)
@@ -66,6 +67,64 @@ def decode_pcx(data: bytes) -> tuple[int, int, list[int], list[tuple[int, int, i
     return w, h, px, pal
 
 
+COLOURS = ["green", "red", "magenta", "cyan", "dark-red", "yellow", "blue"]
+BALL_FRAMES = [
+    (43, "ball"),
+    (77, "grow-1"),
+    (111, "grow-2"),
+    (145, "squashed"),
+    (179, "vanish-1"),
+    (213, "vanish-2"),
+]
+LABELS = ["help", "sound", "next", "restart"]
+
+
+def pieces() -> list[tuple[str, str, int, int, int, int]]:
+    """(file, picture, x, y, w, h) of the pieces, where LINES.EXE's tables (init, 346f) put them."""
+    out = []
+    for c, colour in enumerate(COLOURS):
+        for x, frame in BALL_FRAMES:
+            out.append((f"balls/{c + 1}-{colour}-{frame}.png", "RS_LNS20", x, 170 + 24 * c, 34, 24))
+    out.append(("cells/empty.png", "RS_LNS20", 247, 314, 34, 24))
+    for d in range(10):
+        out.append((f"digits/{d}.png", "RS_LNS20", 462 + 9 * d, 304, 9, 8))
+    out.append(("font/font-9x10.png", "RS_LNS20", 318, 305, 9 * 33, 36))
+    for j, label in enumerate(LABELS):
+        for i, state in enumerate(("off", "on")):
+            out.append((f"buttons/{label}-{state}.png", "RS_LNS20", 148 * j + 74 * i, 340, 72, 10))
+    out.append(("panels/top-ten.png", "RS_LNS20", 0, 0, 239, 169))
+    out.append(("panels/help.png", "RS_LNS20", 238, 0, 239, 169))
+    for k, (x, y) in enumerate(
+        [(478, 1), (551, 1), (478, 75), (551, 75), (478, 149), (551, 149), (551, 223)]
+    ):
+        out.append((f"kings/king-{k + 1}.png", "RS_LNS20", x, y, 72, 73))
+    for k, (x, y) in enumerate([(249, 170), (300, 170), (351, 170), (402, 170), (249, 218), (300, 218)]):
+        out.append((f"kings/pretender-{k + 1}.png", "RS_LNS20", x, y, 50, 47))
+    for k in range(2):
+        out.append((f"kings/king-face-{k + 1}.png", "RS_LNS20", 456, 171 + 17 * k, 18, 16))
+    for i in range(3):
+        for j in range(4):
+            out.append((f"trumpeters/{i * 4 + j + 1:02d}.png", "RS_ZST20", j * 87 + 1, i * 48 + 1, 86, 47))
+    return out
+
+
+def extract(out: str) -> None:
+    from PIL import Image
+
+    pictures = {}
+    os.makedirs(os.path.join(out, "pictures"), exist_ok=True)
+    for name, data in entries():
+        w, h, px, pal = decode_pcx(data)
+        im = Image.new("RGB", (w, h))
+        im.putdata([pal[c] for c in px])
+        im.save(os.path.join(out, "pictures", name[:-4] + ".png"))
+        pictures[name[:-4]] = im
+    for file, pic, x, y, w, h in pieces():
+        os.makedirs(os.path.dirname(os.path.join(out, file)), exist_ok=True)
+        pictures[pic].crop((x, y, x + w, y + h)).save(os.path.join(out, file))
+    print(f"{out}: {len(pictures)} pictures, {len(pieces())} pieces")
+
+
 def main() -> None:
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
     if cmd == "list":
@@ -73,15 +132,8 @@ def main() -> None:
             w = struct.unpack("<H", data[8:10])[0] - struct.unpack("<H", data[4:6])[0] + 1
             h = struct.unpack("<H", data[10:12])[0] - struct.unpack("<H", data[6:8])[0] + 1
             print(f"{name:13} {len(data):7} bytes  {w}x{h}, {data[3]} bit x {data[65]} planes")
-    elif cmd == "extract" and len(sys.argv) > 2:
-        from PIL import Image
-
-        os.makedirs(sys.argv[2], exist_ok=True)
-        for name, data in entries():
-            w, h, px, pal = decode_pcx(data)
-            im = Image.new("RGB", (w, h))
-            im.putdata([pal[c] for c in px])
-            im.save(os.path.join(sys.argv[2], name[:-4] + ".png"))
+    elif cmd == "extract":
+        extract(sys.argv[2] if len(sys.argv) > 2 else os.path.join(HERE, "..", "..", "assets-local", "lines"))
     else:
         sys.exit(__doc__)
 
