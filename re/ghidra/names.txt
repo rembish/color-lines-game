@@ -1,0 +1,49 @@
+# LINES.EXE symbol names.  <seg:off> <name> [# comment]  or  ds:XXXX
+# Segments: 1000 main program, 18e0 Crt, 19c2 Dos, 24ad Graph, 27da System. DGROUP 2938.
+dseg 2938
+
+1000:4075 main
+1000:346f init                    # tables, Top Ten from Lines.res, Randomize
+1000:2e76 game_loop               # play_game, then the Top Ten entry, until Esc
+1000:1ee2 play_game
+1000:103b next_colors             # Random(7)+1 x min(free,3)
+1000:1092 place_next              # Random(80) position, colour from next_colors
+1000:11b3 place_random            # Random(80) position, then Random(7)+1
+1000:153d check_lines             # four directions, runs of >= 5, clear, count
+1000:14b9 collect_runs
+1000:12c9 line_column
+1000:131d line_row
+1000:1391 line_anti_diagonal
+1000:1436 line_diagonal
+1000:1a9b free_neighbours
+1000:1b3d find_paths              # BFS over empty cells from the selected ball
+1000:1779 animate_move
+1000:0000 elapsed_seconds         # two GetTime readings -> Real seconds (16-bit wrap)
+1000:0a72 draw_score_and_kings
+1000:256d read_name
+1000:0438 cell_x                  # (x-1)*34 + 170
+1000:0459 cell_y                  # (y-1)*24 + 60
+
+27da:0c94 Random
+27da:0ce3 NextRand
+27da:0d1b Randomize
+27da:0c48 RealAdd
+27da:0c4e RealSub
+27da:0c5a RealMul
+27da:0c60 RealDiv
+27da:0c6a RealCmp
+27da:0c6e LongToReal
+27da:0c7a RealRound
+19c2:0036 GetTime
+
+ds:07b0 RandSeed
+ds:07da top_ten                   # + 16k: string[13] name, word score
+ds:3438 score
+ds:343a best
+ds:343c balls
+ds:343e free_cells
+ds:3490 board                     # + 18x + 2y
+ds:34a2 colour                    # of the ball being checked
+ds:326c line_count
+ds:35e6 next_colour               # [1..3]
+ds:35fa next_count

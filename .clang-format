@@ -1,0 +1,18 @@
+# House style: 4-space K&R, function braces on their own line, short statements stay on one line.
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 110
+BreakBeforeBraces: Linux
+PointerAlignment: Right
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLoopsOnASingleLine: true
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortBlocksOnASingleLine: Always
+AllowShortFunctionsOnASingleLine: All
+AlignConsecutiveMacros: AcrossComments
+AlignTrailingComments: true
+SpacesBeforeTrailingComments: 1
+IndentCaseLabels: false
+SortIncludes: Never
+ReflowComments: false
+Cpp11BracedListStyle: false

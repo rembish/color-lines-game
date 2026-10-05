@@ -1,0 +1,49 @@
+# The Python tooling of the reconstruction (re/tools, re/emu, tests/*.py): the data decoders,
+# the emulator harness that runs the original, and the replay checks. Nothing here is needed
+# to build or play the game.
+#
+#   uv sync --extra dev          the environment (.venv)
+#   make py-check                format check, lint, strict type check
+[project]
+name = "lines-tools"
+version = "0.1.0"
+description = "Reverse-engineering and differential-test tools for Color Lines (1992)"
+requires-python = ">=3.12"
+license = "BSD-3-Clause"
+dependencies = [
+    "unicorn>=2.1",    # the x86 emulator the original runs in
+    "capstone>=5.0",   # disassembler
+    "pillow>=10",      # re/tools/lines.py (PCX pictures)
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 110  # as .clang-format
+target-version = "py312"
+src = ["re/tools", "re/emu", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP", "B", "C4", "BLE"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 12
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+files = ["re/tools", "re/emu", "tests"]
+mypy_path = ["re/tools", "re/emu", "tests"]
+explicit_package_bases = true
+
+# capstone ships no type information
+[[tool.mypy.overrides]]
+module = ["capstone", "capstone.*"]
+ignore_missing_imports = true

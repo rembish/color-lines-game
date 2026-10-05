@@ -1,0 +1,21 @@
+# Your own copy of the original game (needed only by the re/ tools and the game; not distributed)
+original/
+
+# Builds
+build/
+build-*/
+build-web/
+
+# Python environment
+.venv/
+__pycache__/
+
+# Ghidra project and generated output (regenerate with re/ghidra/run.sh)
+re/ghidra/proj/
+re/ghidra/headless*.log
+re/ghidra/*_decomp.c
+
+# Emulator logs and anything decoded from your own original files (never committed)
+re/emu/logs/
+assets-local/
+clips/
