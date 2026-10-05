@@ -33,7 +33,8 @@ Turbo Pascal's: `Randomize` (`27da:0d1b`, from the DOS time) once at start (`ini
 `NextRand` (`27da:0ce3`) `RandSeed = RandSeed * 0x08088405 + 1` (`RandSeed` = `ds:07b0`);
 `Random(N)` (`27da:0c94`) = `(RandSeed >> 16) mod N`.
 
-Only four calls, all in the game logic, none in the input loop:
+Only four calls, all in the game logic, none in the input loop (confirmed by a byte search for
+`lcall 27da:0c94` over the whole image: 1000:1070, 109c, 11bd, 1228; one `Randomize`, 3c33):
 
 | Where | Call | For |
 |-------|------|-----|
@@ -43,8 +44,8 @@ Only four calls, all in the game logic, none in the input loop:
 
 **Position:** `k = Random(80)`, cell `x = k mod 9 + 1`, `y = k div 9 + 1`; while that cell is
 taken, `k + 1`, and 81 wraps to 0. `Random(80)` never gives 80, so the bottom-right cell
-(9, 9) is only reached by probing from (8, 9): it is half as likely as other cells next to a
-taken run, and never drawn directly. The port keeps this.
+(9, 9) is never drawn directly, only reached by probing from a taken (8, 9) and the cells
+before it. The port keeps this.
 
 The bounce of a selected ball runs on the clock (`Dos.GetTime`), not on random numbers.
 
@@ -73,7 +74,8 @@ score (Top Ten #1, the king to beat).
 6. A line: score += `Round(((count - 5)^2 + 5) * f)`, `f = 2.0 - (t / 6000.0) * 0.2`, 0 if
    negative, all in Turbo Pascal 6-byte Reals; `t` = seconds from `t0` to `t1` (below).
    Nothing is placed after a line.
-7. The game ends when free = 0 (or F4 / Esc).
+7. The game ends when free = 0, F4 (restart) or Esc (quit). After the end and after F4 alike,
+   `game_loop` (`2e76`) offers the Top Ten with the score so far; only Esc skips it.
 
 `check_lines(x, y)` (`153d`): for the row, the column and both diagonals through (x, y), take the
 9 cells of that line (off-board cells of a diagonal as 0) and collect every run of 5 or more of
