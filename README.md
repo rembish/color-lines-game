@@ -3,7 +3,10 @@
 «Color Lines» by Gamos (Moscow, 1992) — the game of every mom and dad in the 90s: a 9x9 board,
 balls of seven colours, three new ones after every move, and lines of five or more vanish.
 Programming Olga Demina, graphics Igor Ivkin & Gennady Denisov. This repo is a
-reverse-engineered port of `LINES.EXE` to portable C (+ SDL2 and WebAssembly, in progress).
+reverse-engineered port of `LINES.EXE` to portable C + SDL2: it runs natively and in a browser.
+
+**Play in the browser:** <https://lines.rembi.sh/> — with a global Top Ten. The page downloads the
+original's pictures for you from the Internet Archive (one click), or takes your own copy.
 
 The goal has two halves:
 
@@ -29,6 +32,30 @@ e49c81cd16e4bf5253e4272a131c3f4817370f3f635923f36fb3b1e93a521f53  LINES.LIB
   `LINES.LIB` is a "pcxLib" archive of five 16-colour PCX pictures (`re/tools/lines.py`
   extracts them). `Lines.res`, written by the game, holds the Top Ten.
 
+## Playing
+
+Click a ball, then a free cell it can reach (or the arrow keys and Space). Five or more of one
+colour in a row — across, down or diagonal — vanish and score; otherwise the three balls shown
+under *Next* arrive. F1 help, F2 sound, F3 the next balls shown or not, F4 start again (the Top
+Ten all the same, as in the original), Esc the title, F11 full screen.
+
+On lines.rembi.sh every game is dealt by the server with a signed seed. At the end the browser
+sends the moves with the two clock readings of each; the server replays them with the same C
+core compiled to WebAssembly and books the score it gets itself (`cloudflare/`). Names are
+unique (the first browser to take one keeps it). Natively, and when the server does not answer,
+the Top Ten stays on this computer.
+
+## Building
+
+```sh
+cmake -S . -B build && cmake --build build -j
+./build/lines            # looks for LINES.LIB in original/ or a folder you name
+make help                # the everyday commands; `make check` is what CI runs
+```
+
+Browser: `make web` (Emscripten; the web build and the server's core into `cloudflare/`),
+`node --test cloudflare/test.mjs` for the server.
+
 ## How faithful is it?
 
 - `re/emu/lemu.py` loads `LINES.EXE` into the Unicorn CPU emulator, stubs out only drawing,
@@ -52,6 +79,14 @@ cmake -S . -B build && cmake --build build
 ```
 
 Findings and addresses are in [`re/NOTES.md`](re/NOTES.md).
+
+## Code quality
+
+The core builds with `-Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wsign-conversion` and more,
+clean under gcc and clang, and is kept clean under clang-tidy and clang-format 21; the Python
+tooling under ruff and `mypy --strict`. CI runs all of it on every push, with the sanitizers, the
+web build, the server's tests and three games recorded from the original (`tests/fixtures`);
+the deploy waits for it.
 
 ## Credits
 

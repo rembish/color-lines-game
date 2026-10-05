@@ -25,6 +25,10 @@ endif()
 add_executable(replay tests/replay.c)
 target_link_libraries(replay PRIVATE lncore)
 
+# A greedy bot's whole game for any seed (for testing the server)
+add_executable(botmoves tests/botmoves.c)
+target_link_libraries(botmoves PRIVATE lncore)
+
 # One Real48 operation per input line; tests/real48.py checks it against the original's System.
 add_executable(real48 tests/real48.c)
 target_link_libraries(real48 PRIVATE lncore)
