@@ -1,7 +1,9 @@
 # LINES.EXE reverse-engineering notes
 
 Addresses are Ghidra `segment:offset` with the image loaded at segment `1000`. Symbol names live
-in `ghidra/names.txt`. Items marked **[verify]** still need a check in the emulator.
+in `ghidra/names.txt`. Items marked **[verify]** still need a check in the emulator. The rules below are checked by
+`tests/difftest.py` on 120 games played by the original in `re/emu` (20 from the opening, 40 from
+crafted boards with long lines and crosses, 60 crafted with thinking times at rounding ties).
 
 ## The original
 
@@ -87,8 +89,14 @@ Elapsed time (`1000:0000`): each `GetTime` reading becomes
 `Real(hour * 3600 + minute * 60 + second as a 16-bit unsigned sum) + hundredths * 0.01`
 (**the 16-bit sum wraps from 18:12:16 on**); `t = t1 - t0`, plus 86400 if negative.
 So a 5-line is 10 points, 6 = 12, 7 = 18, 8 = 28, 9 = 42 (cross lines count more), less only
-after ~50 minutes of thought. Exact .5 cases depend on the Real48 rounding: the port needs
-bit-exact Real48 add / sub / mul / div / round (`27da:0c48`, `0c4e`, `0c5a`, `0c60`, `0c7a`).
+after ~50 minutes of thought.
+
+**The Reals matter.** With doubles, 3 of 60 games thought to a rounding tie
+(`t = 30000 (2 - (j + 1/2) / points)`) scored one point off. `core/ln_real48.c` transliterates
+the System routines (add/sub `0984`, mul `0a5a`, div `0ad7`, cmp `0b83`, long to Real `0bad`,
+Round/Trunc `0bec`) register by register; `tests/real48.py` checks it against the original's
+routines in the emulator on 50,000 random operands (all equal), and the difftest's tie games
+match.
 
 ## Top Ten (`Lines.res`)
 
